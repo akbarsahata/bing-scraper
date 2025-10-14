@@ -5,5 +5,9 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  return <div className="min-h-screen bg-background"></div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <h1>Welcome to Bing Scraper Web!</h1>
+    </div>
+  );
 }
