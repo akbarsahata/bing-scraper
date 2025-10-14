@@ -71,37 +71,192 @@ The project will be organized into the following directories:
 
 ## Database Schema
 
-The database schema will include tables for users, uploaded files, scraping tasks, and search results. The exact schema will be defined based on the requirements of the application.
+The database schema is designed to support user authentication, CSV file uploads, search query management, asynchronous scraping tasks, and detailed search result storage.
+
+### Schema Overview
+
+- **users**: User accounts and authentication
+- **uploaded_files**: CSV file metadata and R2 storage references
+- **search_queries**: Individual search queries extracted from CSV files
+- **scraping_tasks**: Asynchronous task management with status tracking
+- **search_results**: Search result metadata per query
+- **search_result_items**: Individual result links and details from Bing
+
+### Tables
 
 ```sql
+-- User management and authentication
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);  
+    id TEXT PRIMARY KEY,                    -- UUID or Better Auth generated ID
+    email TEXT NOT NULL UNIQUE,             -- User email for login
+    username TEXT UNIQUE,                   -- Optional username
+    name TEXT,                              -- Display name
+    email_verified INTEGER DEFAULT 0,       -- Email verification status
+    image TEXT,                             -- Profile image URL
+    created_at INTEGER NOT NULL,            -- Unix timestamp
+    updated_at INTEGER NOT NULL             -- Unix timestamp
+);
+
+-- Better Auth sessions table
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Better Auth accounts table (for OAuth providers)
+CREATE TABLE accounts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    access_token TEXT,
+    refresh_token TEXT,
+    expires_at INTEGER,
+    scope TEXT,
+    password TEXT,                          -- Hashed password for credential provider
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(provider_id, account_id)
+);
+
+-- Uploaded CSV files with R2 storage references
 CREATE TABLE uploaded_files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    file_name TEXT NOT NULL,
-    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    id TEXT PRIMARY KEY,                    -- UUID
+    user_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,                -- Original filename
+    r2_key TEXT NOT NULL UNIQUE,            -- R2 storage key
+    r2_bucket TEXT NOT NULL,                -- R2 bucket name
+    total_queries INTEGER DEFAULT 0,        -- Total queries in CSV
+    processed_queries INTEGER DEFAULT 0,    -- Processed count
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, processing, completed, failed
+    error_message TEXT,                     -- Error details if failed
+    uploaded_at INTEGER NOT NULL,           -- Unix timestamp
+    processed_at INTEGER,                   -- Unix timestamp when processing completed
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Individual search queries extracted from CSV files
+CREATE TABLE search_queries (
+    id TEXT PRIMARY KEY,                    -- UUID
+    uploaded_file_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    query_text TEXT NOT NULL,               -- The search query string
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, queued, scraping, completed, failed
+    retry_count INTEGER DEFAULT 0,          -- Number of retry attempts
+    max_retries INTEGER DEFAULT 3,          -- Maximum retry attempts
+    error_message TEXT,                     -- Error details if failed
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (uploaded_file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Scraping tasks for queue management
 CREATE TABLE scraping_tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_id INTEGER NOT NULL,
-    status TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (file_id) REFERENCES uploaded_files(id)
+    id TEXT PRIMARY KEY,                    -- UUID
+    search_query_id TEXT NOT NULL,
+    uploaded_file_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, queued, running, completed, failed, cancelled
+    workflow_id TEXT,                       -- Cloudflare Workflow instance ID
+    queue_message_id TEXT,                  -- Cloudflare Queue message ID
+    started_at INTEGER,                     -- Unix timestamp when scraping started
+    completed_at INTEGER,                   -- Unix timestamp when completed
+    duration_ms INTEGER,                    -- Task duration in milliseconds
+    error_message TEXT,                     -- Error details if failed
+    retry_count INTEGER DEFAULT 0,
+    metadata TEXT,                          -- JSON metadata (browser info, etc.)
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (search_query_id) REFERENCES search_queries(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_file_id) REFERENCES uploaded_files(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Search result metadata per query
 CREATE TABLE search_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL,
-    query TEXT NOT NULL,
-    result_data TEXT NOT NULL,
-    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES scraping_tasks(id)
+    id TEXT PRIMARY KEY,                    -- UUID
+    task_id TEXT NOT NULL,
+    query_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    query_text TEXT NOT NULL,               -- Denormalized for quick access
+    total_results INTEGER DEFAULT 0,        -- Total number of result items
+    page_title TEXT,                        -- Bing page title
+    search_url TEXT,                        -- Full Bing search URL
+    scraped_at INTEGER NOT NULL,            -- Unix timestamp
+    r2_screenshot_key TEXT,                 -- Optional screenshot in R2
+    r2_html_key TEXT,                       -- Optional full HTML in R2
+    metadata TEXT,                          -- JSON metadata (ads count, related searches, etc.)
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES scraping_tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (query_id) REFERENCES search_queries(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(task_id, query_id)
 );
+
+-- Individual search result items (links) from Bing
+CREATE TABLE search_result_items (
+    id TEXT PRIMARY KEY,                    -- UUID
+    search_result_id TEXT NOT NULL,
+    query_id TEXT NOT NULL,
+    position INTEGER NOT NULL,              -- Position in search results (1-based)
+    title TEXT NOT NULL,                    -- Result title
+    url TEXT NOT NULL,                      -- Result URL
+    display_url TEXT,                       -- Displayed URL (may differ from actual)
+    snippet TEXT,                           -- Result description/snippet
+    type TEXT DEFAULT 'organic',            -- organic, ad, featured, news, video, etc.
+    domain TEXT,                            -- Extracted domain
+    is_ad INTEGER DEFAULT 0,                -- Whether this is an advertisement
+    metadata TEXT,                          -- JSON metadata (date, rating, etc.)
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (search_result_id) REFERENCES search_results(id) ON DELETE CASCADE,
+    FOREIGN KEY (query_id) REFERENCES search_queries(id) ON DELETE CASCADE
+);
+
+-- Indexes for performance optimization
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX idx_uploaded_files_user_id ON uploaded_files(user_id);
+CREATE INDEX idx_uploaded_files_status ON uploaded_files(status);
+CREATE INDEX idx_search_queries_file_id ON search_queries(file_id);
+CREATE INDEX idx_search_queries_user_id ON search_queries(user_id);
+CREATE INDEX idx_search_queries_status ON search_queries(status);
+CREATE INDEX idx_scraping_tasks_query_id ON scraping_tasks(query_id);
+CREATE INDEX idx_scraping_tasks_status ON scraping_tasks(status);
+CREATE INDEX idx_scraping_tasks_user_id ON scraping_tasks(user_id);
+CREATE INDEX idx_search_results_task_id ON search_results(task_id);
+CREATE INDEX idx_search_results_query_id ON search_results(query_id);
+CREATE INDEX idx_search_results_user_id ON search_results(user_id);
+CREATE INDEX idx_search_result_items_search_result_id ON search_result_items(search_result_id);
+CREATE INDEX idx_search_result_items_query_id ON search_result_items(query_id);
 ```
+
+### Schema Notes
+
+1. **Unix Timestamps**: Using INTEGER for timestamps (Unix epoch) for better D1 compatibility
+2. **Text IDs**: Using TEXT for IDs to support UUIDs and Better Auth's ID format
+3. **Denormalization**: Some fields like `query_text` and `user_id` are denormalized for query performance
+4. **Status Fields**: Extensive status tracking for async processing
+5. **R2 References**: Storage keys for files, screenshots, and HTML content
+6. **Better Auth Tables**: Compatible with Better Auth v1.3.4 schema requirements
+7. **Indexes**: Strategic indexes for common query patterns
+8. **Metadata Fields**: JSON text fields for flexible additional data storage
+9. **Cascading Deletes**: Proper foreign key constraints with CASCADE for data cleanup
+
+## Frontend Mockup
+
+![Frontend Mockup](./docs/mockup.png)
 
 
