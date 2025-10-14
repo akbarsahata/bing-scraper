@@ -1,5 +1,5 @@
 {
-  "name": "user-application",
+  "name": "bing-scraper-web",
   "private": true,
   "type": "module",
   "scripts": {
