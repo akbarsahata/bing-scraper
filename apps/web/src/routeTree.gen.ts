@@ -16,8 +16,8 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
-import { Route as AppAuthedTasksRouteImport } from './routes/app/_authed/tasks'
-import { Route as AppAuthedTasksTaskIdRouteImport } from './routes/app/_authed/tasks/$taskId'
+import { Route as AppAuthedTasksIndexRouteImport } from './routes/app/_authed/tasks/index'
+import { Route as AppAuthedTasksTaskIdIndexRouteImport } from './routes/app/_authed/tasks/$taskId/index'
 import { Route as AppAuthedTasksTaskIdKeywordKeywordIdRouteImport } from './routes/app/_authed/tasks/$taskId/keyword/$keywordId'
 
 const AppRouteImport = createFileRoute('/app')()
@@ -51,21 +51,22 @@ const AppAuthedIndexRoute = AppAuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAuthedRoute,
 } as any)
-const AppAuthedTasksRoute = AppAuthedTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
+const AppAuthedTasksIndexRoute = AppAuthedTasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
   getParentRoute: () => AppAuthedRoute,
 } as any)
-const AppAuthedTasksTaskIdRoute = AppAuthedTasksTaskIdRouteImport.update({
-  id: '/$taskId',
-  path: '/$taskId',
-  getParentRoute: () => AppAuthedTasksRoute,
-} as any)
+const AppAuthedTasksTaskIdIndexRoute =
+  AppAuthedTasksTaskIdIndexRouteImport.update({
+    id: '/tasks/$taskId/',
+    path: '/tasks/$taskId/',
+    getParentRoute: () => AppAuthedRoute,
+  } as any)
 const AppAuthedTasksTaskIdKeywordKeywordIdRoute =
   AppAuthedTasksTaskIdKeywordKeywordIdRouteImport.update({
-    id: '/keyword/$keywordId',
-    path: '/keyword/$keywordId',
-    getParentRoute: () => AppAuthedTasksTaskIdRoute,
+    id: '/tasks/$taskId/keyword/$keywordId',
+    path: '/tasks/$taskId/keyword/$keywordId',
+    getParentRoute: () => AppAuthedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -73,9 +74,9 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedRouteWithChildren
-  '/app/tasks': typeof AppAuthedTasksRouteWithChildren
   '/app/': typeof AppAuthedIndexRoute
-  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/tasks': typeof AppAuthedTasksIndexRoute
+  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdIndexRoute
   '/app/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRoutesByTo {
@@ -83,8 +84,8 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedIndexRoute
-  '/app/tasks': typeof AppAuthedTasksRouteWithChildren
-  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/tasks': typeof AppAuthedTasksIndexRoute
+  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdIndexRoute
   '/app/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRoutesById {
@@ -94,9 +95,9 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppRouteWithChildren
   '/app/_authed': typeof AppAuthedRouteWithChildren
-  '/app/_authed/tasks': typeof AppAuthedTasksRouteWithChildren
   '/app/_authed/': typeof AppAuthedIndexRoute
-  '/app/_authed/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/_authed/tasks/': typeof AppAuthedTasksIndexRoute
+  '/app/_authed/tasks/$taskId/': typeof AppAuthedTasksTaskIdIndexRoute
   '/app/_authed/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRouteTypes {
@@ -106,8 +107,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/app'
-    | '/app/tasks'
     | '/app/'
+    | '/app/tasks'
     | '/app/tasks/$taskId'
     | '/app/tasks/$taskId/keyword/$keywordId'
   fileRoutesByTo: FileRoutesByTo
@@ -126,9 +127,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/app'
     | '/app/_authed'
-    | '/app/_authed/tasks'
     | '/app/_authed/'
-    | '/app/_authed/tasks/$taskId'
+    | '/app/_authed/tasks/'
+    | '/app/_authed/tasks/$taskId/'
     | '/app/_authed/tasks/$taskId/keyword/$keywordId'
   fileRoutesById: FileRoutesById
 }
@@ -183,62 +184,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedIndexRouteImport
       parentRoute: typeof AppAuthedRoute
     }
-    '/app/_authed/tasks': {
-      id: '/app/_authed/tasks'
+    '/app/_authed/tasks/': {
+      id: '/app/_authed/tasks/'
       path: '/tasks'
       fullPath: '/app/tasks'
-      preLoaderRoute: typeof AppAuthedTasksRouteImport
+      preLoaderRoute: typeof AppAuthedTasksIndexRouteImport
       parentRoute: typeof AppAuthedRoute
     }
-    '/app/_authed/tasks/$taskId': {
-      id: '/app/_authed/tasks/$taskId'
-      path: '/$taskId'
+    '/app/_authed/tasks/$taskId/': {
+      id: '/app/_authed/tasks/$taskId/'
+      path: '/tasks/$taskId'
       fullPath: '/app/tasks/$taskId'
-      preLoaderRoute: typeof AppAuthedTasksTaskIdRouteImport
-      parentRoute: typeof AppAuthedTasksRoute
+      preLoaderRoute: typeof AppAuthedTasksTaskIdIndexRouteImport
+      parentRoute: typeof AppAuthedRoute
     }
     '/app/_authed/tasks/$taskId/keyword/$keywordId': {
       id: '/app/_authed/tasks/$taskId/keyword/$keywordId'
-      path: '/keyword/$keywordId'
+      path: '/tasks/$taskId/keyword/$keywordId'
       fullPath: '/app/tasks/$taskId/keyword/$keywordId'
       preLoaderRoute: typeof AppAuthedTasksTaskIdKeywordKeywordIdRouteImport
-      parentRoute: typeof AppAuthedTasksTaskIdRoute
+      parentRoute: typeof AppAuthedRoute
     }
   }
 }
 
-interface AppAuthedTasksTaskIdRouteChildren {
+interface AppAuthedRouteChildren {
+  AppAuthedIndexRoute: typeof AppAuthedIndexRoute
+  AppAuthedTasksIndexRoute: typeof AppAuthedTasksIndexRoute
+  AppAuthedTasksTaskIdIndexRoute: typeof AppAuthedTasksTaskIdIndexRoute
   AppAuthedTasksTaskIdKeywordKeywordIdRoute: typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 
-const AppAuthedTasksTaskIdRouteChildren: AppAuthedTasksTaskIdRouteChildren = {
+const AppAuthedRouteChildren: AppAuthedRouteChildren = {
+  AppAuthedIndexRoute: AppAuthedIndexRoute,
+  AppAuthedTasksIndexRoute: AppAuthedTasksIndexRoute,
+  AppAuthedTasksTaskIdIndexRoute: AppAuthedTasksTaskIdIndexRoute,
   AppAuthedTasksTaskIdKeywordKeywordIdRoute:
     AppAuthedTasksTaskIdKeywordKeywordIdRoute,
-}
-
-const AppAuthedTasksTaskIdRouteWithChildren =
-  AppAuthedTasksTaskIdRoute._addFileChildren(AppAuthedTasksTaskIdRouteChildren)
-
-interface AppAuthedTasksRouteChildren {
-  AppAuthedTasksTaskIdRoute: typeof AppAuthedTasksTaskIdRouteWithChildren
-}
-
-const AppAuthedTasksRouteChildren: AppAuthedTasksRouteChildren = {
-  AppAuthedTasksTaskIdRoute: AppAuthedTasksTaskIdRouteWithChildren,
-}
-
-const AppAuthedTasksRouteWithChildren = AppAuthedTasksRoute._addFileChildren(
-  AppAuthedTasksRouteChildren,
-)
-
-interface AppAuthedRouteChildren {
-  AppAuthedTasksRoute: typeof AppAuthedTasksRouteWithChildren
-  AppAuthedIndexRoute: typeof AppAuthedIndexRoute
-}
-
-const AppAuthedRouteChildren: AppAuthedRouteChildren = {
-  AppAuthedTasksRoute: AppAuthedTasksRouteWithChildren,
-  AppAuthedIndexRoute: AppAuthedIndexRoute,
 }
 
 const AppAuthedRouteWithChildren = AppAuthedRoute._addFileChildren(

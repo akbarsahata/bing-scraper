@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/app/_authed/tasks/$taskId")({
+export const Route = createFileRoute("/app/_authed/tasks/$taskId/")({
   component: TaskDetailPage,
 });
 
