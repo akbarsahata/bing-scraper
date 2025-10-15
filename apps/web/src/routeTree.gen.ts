@@ -11,15 +11,30 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
+import { Route as AppAuthedTasksRouteImport } from './routes/app/_authed/tasks'
+import { Route as AppAuthedTasksTaskIdRouteImport } from './routes/app/_authed/tasks/$taskId'
+import { Route as AppAuthedTasksTaskIdKeywordKeywordIdRouteImport } from './routes/app/_authed/tasks/$taskId/keyword/$keywordId'
 
 const AppRouteImport = createFileRoute('/app')()
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -36,33 +51,91 @@ const AppAuthedIndexRoute = AppAuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAuthedRoute,
 } as any)
+const AppAuthedTasksRoute = AppAuthedTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppAuthedRoute,
+} as any)
+const AppAuthedTasksTaskIdRoute = AppAuthedTasksTaskIdRouteImport.update({
+  id: '/$taskId',
+  path: '/$taskId',
+  getParentRoute: () => AppAuthedTasksRoute,
+} as any)
+const AppAuthedTasksTaskIdKeywordKeywordIdRoute =
+  AppAuthedTasksTaskIdKeywordKeywordIdRouteImport.update({
+    id: '/keyword/$keywordId',
+    path: '/keyword/$keywordId',
+    getParentRoute: () => AppAuthedTasksTaskIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedRouteWithChildren
+  '/app/tasks': typeof AppAuthedTasksRouteWithChildren
   '/app/': typeof AppAuthedIndexRoute
+  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedIndexRoute
+  '/app/tasks': typeof AppAuthedTasksRouteWithChildren
+  '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/app': typeof AppRouteWithChildren
   '/app/_authed': typeof AppAuthedRouteWithChildren
+  '/app/_authed/tasks': typeof AppAuthedTasksRouteWithChildren
   '/app/_authed/': typeof AppAuthedIndexRoute
+  '/app/_authed/tasks/$taskId': typeof AppAuthedTasksTaskIdRouteWithChildren
+  '/app/_authed/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/app/'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/app'
+    | '/app/tasks'
+    | '/app/'
+    | '/app/tasks/$taskId'
+    | '/app/tasks/$taskId/keyword/$keywordId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app'
-  id: '__root__' | '/' | '/app' | '/app/_authed' | '/app/_authed/'
+  to:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/app'
+    | '/app/tasks'
+    | '/app/tasks/$taskId'
+    | '/app/tasks/$taskId/keyword/$keywordId'
+  id:
+    | '__root__'
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/app'
+    | '/app/_authed'
+    | '/app/_authed/tasks'
+    | '/app/_authed/'
+    | '/app/_authed/tasks/$taskId'
+    | '/app/_authed/tasks/$taskId/keyword/$keywordId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   AppRoute: typeof AppRouteWithChildren
 }
 
@@ -73,6 +146,20 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -96,14 +183,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedIndexRouteImport
       parentRoute: typeof AppAuthedRoute
     }
+    '/app/_authed/tasks': {
+      id: '/app/_authed/tasks'
+      path: '/tasks'
+      fullPath: '/app/tasks'
+      preLoaderRoute: typeof AppAuthedTasksRouteImport
+      parentRoute: typeof AppAuthedRoute
+    }
+    '/app/_authed/tasks/$taskId': {
+      id: '/app/_authed/tasks/$taskId'
+      path: '/$taskId'
+      fullPath: '/app/tasks/$taskId'
+      preLoaderRoute: typeof AppAuthedTasksTaskIdRouteImport
+      parentRoute: typeof AppAuthedTasksRoute
+    }
+    '/app/_authed/tasks/$taskId/keyword/$keywordId': {
+      id: '/app/_authed/tasks/$taskId/keyword/$keywordId'
+      path: '/keyword/$keywordId'
+      fullPath: '/app/tasks/$taskId/keyword/$keywordId'
+      preLoaderRoute: typeof AppAuthedTasksTaskIdKeywordKeywordIdRouteImport
+      parentRoute: typeof AppAuthedTasksTaskIdRoute
+    }
   }
 }
 
+interface AppAuthedTasksTaskIdRouteChildren {
+  AppAuthedTasksTaskIdKeywordKeywordIdRoute: typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
+}
+
+const AppAuthedTasksTaskIdRouteChildren: AppAuthedTasksTaskIdRouteChildren = {
+  AppAuthedTasksTaskIdKeywordKeywordIdRoute:
+    AppAuthedTasksTaskIdKeywordKeywordIdRoute,
+}
+
+const AppAuthedTasksTaskIdRouteWithChildren =
+  AppAuthedTasksTaskIdRoute._addFileChildren(AppAuthedTasksTaskIdRouteChildren)
+
+interface AppAuthedTasksRouteChildren {
+  AppAuthedTasksTaskIdRoute: typeof AppAuthedTasksTaskIdRouteWithChildren
+}
+
+const AppAuthedTasksRouteChildren: AppAuthedTasksRouteChildren = {
+  AppAuthedTasksTaskIdRoute: AppAuthedTasksTaskIdRouteWithChildren,
+}
+
+const AppAuthedTasksRouteWithChildren = AppAuthedTasksRoute._addFileChildren(
+  AppAuthedTasksRouteChildren,
+)
+
 interface AppAuthedRouteChildren {
+  AppAuthedTasksRoute: typeof AppAuthedTasksRouteWithChildren
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
 }
 
 const AppAuthedRouteChildren: AppAuthedRouteChildren = {
+  AppAuthedTasksRoute: AppAuthedTasksRouteWithChildren,
   AppAuthedIndexRoute: AppAuthedIndexRoute,
 }
 
@@ -123,6 +257,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
