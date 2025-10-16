@@ -81,8 +81,6 @@ export const filesRouter = t.router({
       const fileId = `file_${crypto.randomUUID()}`;
       const now = new Date();
 
-      console.log("Storing file record with ID:", fileId);
-
       const uploadedFile = await uploadedFilesRepo.create(db, {
         id: fileId,
         userId,
@@ -97,8 +95,6 @@ export const filesRouter = t.router({
         updatedAt: now,
       });
 
-      console.log("Created uploaded file record:", uploadedFile);
-
       const searchQueryRecords = keywords.map((keyword) => ({
         id: `query_${crypto.randomUUID()}`,
         uploadedFileId: fileId,
@@ -111,16 +107,10 @@ export const filesRouter = t.router({
         updatedAt: now,
       }));
 
-      console.log("Creating search query records:", searchQueryRecords);
-
-      const queries = await searchQueriesRepo.createMany(
+      await searchQueriesRepo.createMany(
         db,
         searchQueryRecords
       );
-
-      console.log("Created search query records:", queries);
-
-      // end of transaction
 
       return {
         fileId: uploadedFile.id,
@@ -185,6 +175,7 @@ export const filesRouter = t.router({
         processedAt: file.processedAt,
         totalQueries: file.totalQueries,
         processedQueries: file.processedQueries,
+        searchQueries: file.searchQueries,
         status: file.status,
         errorMessage: file.errorMessage,
       };

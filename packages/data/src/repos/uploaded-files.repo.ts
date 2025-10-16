@@ -1,13 +1,16 @@
+import {
+  NewUploadedFileSchema,
+  UploadedFileSchema,
+} from "@/zod/uploaded-files";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/database";
-import {
-  uploadedFiles,
-  type NewUploadedFile,
-  type UploadedFile,
-} from "../schemas/uploaded-files";
+import { uploadedFiles } from "../schemas/uploaded-files";
 
 export const uploadedFilesRepo = {
-  create: async (db: Db, data: NewUploadedFile): Promise<UploadedFile> => {
+  create: async (
+    db: Db,
+    data: NewUploadedFileSchema
+  ): Promise<UploadedFileSchema> => {
     try {
       const [file] = await db.insert(uploadedFiles).values(data).returning();
       return file;
@@ -17,19 +20,23 @@ export const uploadedFilesRepo = {
     }
   },
 
-  getById: async (db: Db, id: string): Promise<UploadedFile | undefined> => {
-    const [file] = await db
-      .select()
-      .from(uploadedFiles)
-      .where(eq(uploadedFiles.id, id))
-      .limit(1);
+  getById: async (
+    db: Db,
+    id: string
+  ) => {
+    const file = await db.query.uploadedFiles.findFirst({
+      where: eq(uploadedFiles.id, id),
+      with: {
+        searchQueries: true,
+      },
+    });
     return file;
   },
 
   getByR2Key: async (
     db: Db,
     r2Key: string
-  ): Promise<UploadedFile | undefined> => {
+  ): Promise<UploadedFileSchema | undefined> => {
     const [file] = await db
       .select()
       .from(uploadedFiles)
@@ -46,7 +53,7 @@ export const uploadedFilesRepo = {
       offset?: number;
       status?: "pending" | "processing" | "completed" | "failed";
     }
-  ): Promise<UploadedFile[]> => {
+  ): Promise<UploadedFileSchema[]> => {
     const { limit = 50, offset = 0, status } = options || {};
 
     let query = db
@@ -79,7 +86,7 @@ export const uploadedFilesRepo = {
     db: Db,
     userId: string,
     limit: number = 10
-  ): Promise<UploadedFile[]> => {
+  ): Promise<UploadedFileSchema[]> => {
     return await db
       .select()
       .from(uploadedFiles)
@@ -91,8 +98,8 @@ export const uploadedFilesRepo = {
   update: async (
     db: Db,
     id: string,
-    data: Partial<Omit<UploadedFile, "id" | "userId" | "createdAt">>
-  ): Promise<UploadedFile | undefined> => {
+    data: Partial<Omit<UploadedFileSchema, "id" | "userId" | "createdAt">>
+  ): Promise<UploadedFileSchema | undefined> => {
     const [file] = await db
       .update(uploadedFiles)
       .set({
@@ -109,8 +116,8 @@ export const uploadedFilesRepo = {
     id: string,
     status: "pending" | "processing" | "completed" | "failed",
     errorMessage?: string
-  ): Promise<UploadedFile | undefined> => {
-    const updateData: Partial<UploadedFile> = {
+  ): Promise<UploadedFileSchema | undefined> => {
+    const updateData: Partial<UploadedFileSchema> = {
       status,
       updatedAt: new Date(),
     };
@@ -135,7 +142,7 @@ export const uploadedFilesRepo = {
     db: Db,
     id: string,
     incrementBy: number = 1
-  ): Promise<UploadedFile | undefined> => {
+  ): Promise<UploadedFileSchema | undefined> => {
     const [file] = await db
       .update(uploadedFiles)
       .set({
@@ -152,7 +159,7 @@ export const uploadedFilesRepo = {
     id: string,
     totalQueries: number,
     processedQueries: number
-  ): Promise<UploadedFile | undefined> => {
+  ): Promise<UploadedFileSchema | undefined> => {
     const [file] = await db
       .update(uploadedFiles)
       .set({
@@ -219,7 +226,7 @@ export const uploadedFilesRepo = {
       limit?: number;
       offset?: number;
     }
-  ): Promise<UploadedFile[]> => {
+  ): Promise<UploadedFileSchema[]> => {
     const { limit = 50, offset = 0 } = options || {};
 
     return await db
@@ -242,7 +249,7 @@ export const uploadedFilesRepo = {
   getPendingFiles: async (
     db: Db,
     limit: number = 10
-  ): Promise<UploadedFile[]> => {
+  ): Promise<UploadedFileSchema[]> => {
     return await db
       .select()
       .from(uploadedFiles)

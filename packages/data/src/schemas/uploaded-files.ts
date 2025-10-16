@@ -34,6 +34,3 @@ export const uploadedFilesRelations = relations(uploadedFiles, ({ one, many }) =
   searchQueries: many(searchQueries),
   scrapingTasks: many(scrapingTasks),
 }));
-
-export type UploadedFile = typeof uploadedFiles.$inferSelect;
-export type NewUploadedFile = typeof uploadedFiles.$inferInsert;
