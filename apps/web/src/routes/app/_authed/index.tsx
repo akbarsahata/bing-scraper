@@ -1,36 +1,65 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { trpc } from "@/utils/trpc-types";
+import { trpc, trpcReact } from "@/utils/trpc-types";
 
 export const Route = createFileRoute("/app/_authed/")({
   component: RouteComponent,
+  loader: async () => {
+    const files = await trpc.files.getRecent.query({ limit: 10 });
+    return { files };
+  },
 });
 
 function RouteComponent() {
   const navigate = useNavigate();
+  const loaderData = Route.useLoaderData();
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
 
-  const recentScrapes = [
-    { name: "<FILE NAME>", date: "Thursday, 21 Oct 2025", progress: 56 },
-    { name: "<FILE NAME>", date: "Monday, 18 Oct 2025", progress: 100 },
-  ];
+  const {
+    data: recentFiles,
+    isLoading: isLoadingFiles,
+    refetch: refetchFiles,
+  } = trpcReact.files.getRecent.useQuery(
+    { limit: 10 },
+    {
+      initialData: loaderData.files,
+    }
+  );
+
+  const recentScrapes = recentFiles || [];
+
+  const uploadMutation = trpcReact.files.upload.useMutation({
+    onSuccess: (result) => {
+      setUploadedFileId(result.fileId);
+      setShowSuccess(true);
+      refetchFiles();
+    },
+    onError: (error) => {
+      console.error("Upload error:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to upload file"
+      );
+      setShowError(true);
+    },
+    onSettled: () => {
+      setIsUploading(false);
+    },
+  });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    // Validate file type
     if (!selectedFile.name.endsWith(".csv")) {
       setErrorMessage("Please upload a CSV file");
       setShowError(true);
       return;
     }
 
-    // Validate file size (max 10MB)
     if (selectedFile.size > 10 * 1024 * 1024) {
       setErrorMessage("File size must be less than 10MB");
       setShowError(true);
@@ -41,12 +70,10 @@ function RouteComponent() {
     setShowError(false);
 
     try {
-      // Read file as base64
       const fileContent = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
-          // Remove data:text/csv;base64, prefix
           const base64Content = base64.split(",")[1];
           resolve(base64Content);
         };
@@ -56,24 +83,15 @@ function RouteComponent() {
 
       console.log("File content (base64):", fileContent);
 
-      // Upload via tRPC
-      const result = await trpc.files.upload.mutate({
+      await uploadMutation.mutateAsync({
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
         fileContent: fileContent,
       });
 
-      setUploadedFileId(result.fileId);
-      setShowSuccess(true);
+      e.target.value = "";
     } catch (error) {
-      console.error("Upload error:", error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to upload file"
-      );
-      setShowError(true);
-    } finally {
-      setIsUploading(false);
-      // Reset file input
+      console.error("File read error:", error);
       e.target.value = "";
     }
   };
@@ -136,27 +154,66 @@ function RouteComponent() {
           <div>
             <h2 className="font-bold mb-4">Recent scrapes</h2>
             <div className="space-y-2">
-              {recentScrapes.map((scrape, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-300 p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50"
-                  onClick={() => navigate({ to: "/app/tasks/$taskId", params: { taskId: "1" } })}
-                >
-                  <div>
-                    <p className="font-medium">{scrape.name}</p>
-                    <p className="text-xs text-gray-600">{scrape.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`text-sm font-bold ${
-                        scrape.progress === 100 ? "text-green-600" : "text-orange-600"
-                      }`}
-                    >
-                      {scrape.progress}%
-                    </span>
-                  </div>
+              {isLoadingFiles ? (
+                <div className="text-center text-gray-500 py-4">
+                  Loading...
                 </div>
-              ))}
+              ) : recentScrapes.length === 0 ? (
+                <div className="text-center text-gray-500 py-4">
+                  No recent scrapes. Upload a CSV file to get started!
+                </div>
+              ) : (
+                recentScrapes.map((scrape: any, index: number) => {
+                  const uploadDate = new Date(scrape.uploadedAt);
+                  const formattedDate = uploadDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  });
+                  
+                  const progress = scrape.totalQueries
+                    ? Math.round(
+                        ((scrape.processedQueries || 0) / scrape.totalQueries) * 100
+                      )
+                    : 0;
+
+                  return (
+                    <div
+                      key={scrape.id || index}
+                      className="border border-gray-300 p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50"
+                      onClick={() =>
+                        navigate({
+                          to: "/app/tasks/$taskId",
+                          params: { taskId: scrape.id },
+                        })
+                      }
+                    >
+                      <div>
+                        <p className="font-medium">{scrape.fileName}</p>
+                        <p className="text-xs text-gray-600">{formattedDate}</p>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`text-sm font-bold ${
+                            scrape.status === "completed"
+                              ? "text-green-600"
+                              : scrape.status === "failed"
+                              ? "text-red-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          {scrape.status === "completed"
+                            ? "100%"
+                            : scrape.status === "failed"
+                            ? "Failed"
+                            : `${progress}%`}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 

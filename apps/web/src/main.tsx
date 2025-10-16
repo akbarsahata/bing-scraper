@@ -1,13 +1,37 @@
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { httpBatchLink } from "@trpc/client";
 import "./styles/globals.css";
 
 import { createRouter } from "./router";
 import reportWebVitals from "./reportWebVitals";
+import { trpcReact } from "./utils/trpc-types";
 
 // Create a new router instance
 const router = createRouter();
+
+function App() {
+  const [queryClient] = useState(() => new QueryClient());
+  const [trpcClient] = useState(() =>
+    trpcReact.createClient({
+      links: [
+        httpBatchLink({
+          url: "/trpc",
+        }),
+      ],
+    })
+  );
+
+  return (
+    <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </trpcReact.Provider>
+  );
+}
 
 // Render the app
 const rootElement = document.getElementById("app")!;
@@ -15,7 +39,7 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <App />
     </StrictMode>,
   );
 }
