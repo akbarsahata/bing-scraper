@@ -1,15 +1,20 @@
+import { Db } from '@repo/data/database';
+
 export async function createContext({
   req,
   env,
+  db,
   workerCtx,
 }: {
   req: Request;
-  env: ServiceBindings;
+  env: Env;
+  db: Db;
   workerCtx: ExecutionContext;
 }) {
   return {
     req,
     env,
+    db,
     workerCtx,
     userInfo: {
       userId: "1234567890",

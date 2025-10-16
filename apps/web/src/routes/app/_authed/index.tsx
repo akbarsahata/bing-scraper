@@ -54,6 +54,8 @@ function RouteComponent() {
         reader.readAsDataURL(selectedFile);
       });
 
+      console.log("File content (base64):", fileContent);
+
       // Upload via tRPC
       const result = await trpc.files.upload.mutate({
         fileName: selectedFile.name,

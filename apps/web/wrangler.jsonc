@@ -9,9 +9,24 @@
   "compatibility_date": "2025-06-17",
   "assets": {
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
+    "not_found_handling": "single-page-application"
   },
   "observability": {
-    "enabled": true,
-  }
+    "enabled": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "STORAGE",
+      "bucket_name": "bing-scraper-storage",
+      "remote": true
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DATABASE",
+      "database_id": "21b9e1da-c50b-42c8-abb4-c222e0416b65",
+      "database_name": "bing-scraper-db",
+      "remote": true
+    }
+  ]
 }
