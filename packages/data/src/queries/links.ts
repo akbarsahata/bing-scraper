@@ -1,5 +1,5 @@
 import { Db } from "@/db/database";
-import { links } from "@/drizzle-out/schema";
+import { links } from "@/schemas/schema";
 import {
   CreateLinkSchemaType,
   destinationsSchema,

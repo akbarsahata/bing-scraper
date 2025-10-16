@@ -1,7 +1,7 @@
 import type { Config } from "drizzle-kit";
 
 const config: Config = {
-  out: "./src/drizzle-out",
+  schema: "./src/schemas/*",
   dialect: "sqlite",
   driver: "d1-http",
   dbCredentials: {

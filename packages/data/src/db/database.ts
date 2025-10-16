@@ -3,7 +3,7 @@ import {
   destinationEvaluations,
   linkClicks,
   links,
-} from "../drizzle-out/schema";
+} from "../schemas/schema";
 
 const schema = {
   links,

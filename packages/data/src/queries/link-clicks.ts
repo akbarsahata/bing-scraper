@@ -1,5 +1,5 @@
 import { Db } from "@/db/database";
-import { linkClicks } from "@/drizzle-out/schema";
+import { linkClicks } from "@/schemas/schema";
 import { LinkClickMessageType } from "@/zod/queue";
 
 export async function addLinkClick(args: {

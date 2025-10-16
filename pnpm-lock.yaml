@@ -164,6 +164,9 @@ importers:
       drizzle-orm:
         specifier: ^0.44.2
         version: 0.44.6(@cloudflare/workers-types@4.20251011.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.4.1)(kysely@0.28.8)
+      drizzle-zod:
+        specifier: ^0.8.3
+        version: 0.8.3(drizzle-orm@0.44.6(@cloudflare/workers-types@4.20251011.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.4.1)(kysely@0.28.8))(zod@3.25.76)
       kysely:
         specifier: ^0.28.2
         version: 0.28.8
@@ -2346,6 +2349,12 @@ packages:
         optional: true
       sqlite3:
         optional: true
+
+  drizzle-zod@0.8.3:
+    resolution: {integrity: sha512-66yVOuvGhKJnTdiqj1/Xaaz9/qzOdRJADpDa68enqS6g3t0kpNkwNYjUuaeXgZfO/UWuIM9HIhSlJ6C5ZraMww==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.0'
+      zod: ^3.25.0 || ^4.0.0
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -5432,6 +5441,11 @@ snapshots:
       '@types/better-sqlite3': 7.6.13
       better-sqlite3: 12.4.1
       kysely: 0.28.8
+
+  drizzle-zod@0.8.3(drizzle-orm@0.44.6(@cloudflare/workers-types@4.20251011.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.4.1)(kysely@0.28.8))(zod@3.25.76):
+    dependencies:
+      drizzle-orm: 0.44.6(@cloudflare/workers-types@4.20251011.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.4.1)(kysely@0.28.8)
+      zod: 3.25.76
 
   dunder-proto@1.0.1:
     dependencies:
