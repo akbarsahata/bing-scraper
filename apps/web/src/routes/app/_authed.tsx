@@ -5,7 +5,7 @@ export const Route = createFileRoute("/app/_authed")({
 });
 function RouteComponent() {
   return (
-    <div className="h-screen overflow-hidden flex">
+    <div className="flex">
       <Outlet />
     </div>
   );

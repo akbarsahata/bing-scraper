@@ -1,10 +1,10 @@
+import { NewSearchQuerySchema, SearchQuerySchema } from '@/zod/search-queries';
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/database";
-import type { NewSearchQuery, SearchQuery } from "../schemas/search-queries";
 import { searchQueries } from "../schemas/search-queries";
 
 export const searchQueriesRepo = {
-  create: async (db: Db, data: NewSearchQuery): Promise<SearchQuery> => {
+  create: async (db: Db, data: NewSearchQuerySchema): Promise<SearchQuerySchema> => {
     const now = new Date();
     const query = await db
       .insert(searchQueries)
@@ -21,8 +21,8 @@ export const searchQueriesRepo = {
 
   createMany: async (
     db: Db,
-    queries: NewSearchQuery[]
-  ): Promise<SearchQuery[]> => {
+    queries: NewSearchQuerySchema[]
+  ) => {
     const now = new Date();
     const queriesToInsert = queries.map((q) => ({
       ...q,
@@ -39,18 +39,16 @@ export const searchQueriesRepo = {
     return inserted;
   },
 
-  findById: async (db: Db, id: string): Promise<SearchQuery | undefined> => {
-    return db
-      .select()
-      .from(searchQueries)
-      .where(eq(searchQueries.id, id))
-      .get();
+  findById: async (db: Db, id: string) => {
+    return db.query.searchQueries.findFirst({
+      where: eq(searchQueries.id, id),
+    });
   },
 
   findByFileId: async (
     db: Db,
     uploadedFileId: string
-  ): Promise<SearchQuery[]> => {
+  ) => {
     return db
       .select()
       .from(searchQueries)
@@ -59,7 +57,7 @@ export const searchQueriesRepo = {
       .all();
   },
 
-  findByUserId: async (db: Db, userId: string): Promise<SearchQuery[]> => {
+  findByUserId: async (db: Db, userId: string) => {
     return db
       .select()
       .from(searchQueries)
@@ -70,8 +68,8 @@ export const searchQueriesRepo = {
 
   findByStatus: async (
     db: Db,
-    status: SearchQuery["status"]
-  ): Promise<SearchQuery[]> => {
+    status: SearchQuerySchema["status"]
+  ) => {
     return db
       .select()
       .from(searchQueries)
@@ -83,8 +81,8 @@ export const searchQueriesRepo = {
   findByFileAndStatus: async (
     db: Db,
     uploadedFileId: string,
-    status: SearchQuery["status"]
-  ): Promise<SearchQuery[]> => {
+    status: SearchQuerySchema["status"]
+  ) => {
     return db
       .select()
       .from(searchQueries)
@@ -101,9 +99,9 @@ export const searchQueriesRepo = {
   updateStatus: async (
     db: Db,
     id: string,
-    status: SearchQuery["status"],
+    status: SearchQuerySchema["status"],
     errorMessage?: string
-  ): Promise<SearchQuery | undefined> => {
+  ): Promise<SearchQuerySchema | undefined> => {
     return db
       .update(searchQueries)
       .set({
@@ -119,7 +117,7 @@ export const searchQueriesRepo = {
   incrementRetryCount: async (
     db: Db,
     id: string
-  ): Promise<SearchQuery | undefined> => {
+  ): Promise<SearchQuerySchema | undefined> => {
     return db
       .update(searchQueries)
       .set({

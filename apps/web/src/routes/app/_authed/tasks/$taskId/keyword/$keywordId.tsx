@@ -1,3 +1,4 @@
+import { trpcReact } from "@/utils/trpc-types";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
@@ -7,29 +8,21 @@ export const Route = createFileRoute(
 });
 
 function KeywordResultsPage() {
-  const { taskId } = Route.useParams();
+  const { keywordId, taskId } = Route.useParams();
   const navigate = useNavigate();
 
-  const keyword = "keyword 1";
+  const { data, isLoading } = trpcReact.queries.getByQueryId.useQuery({
+    queryId: keywordId,
+    uploadedFileId: taskId,
+  });
 
-  const results = [
-    {
-      id: "1",
-      url: "https://example.com/result1",
-      title:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent eu efficitur libero. Phasellus tincidunt rutrum metus, nec aliquet magna pharetra a.",
-      adsFound: 12,
-      linksFound: 10,
-    },
-    {
-      id: "2",
-      url: "https://example.com/result2",
-      title:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent eu efficitur libero. Phasellus tincidunt rutrum metus, nec aliquet magna pharetra a.",
-      adsFound: 8,
-      linksFound: 15,
-    },
-  ];
+  const keyword = data?.query.queryText || "";
+
+  const results = data?.results.items || [];
+  
+  // Calculate ads and links count
+  const adsCount = results.filter((item) => item.isAd).length;
+  const linksCount = results.filter((item) => !item.isAd).length;
 
   const handleDownload = () => {
     // TODO: Implement download CSV functionality
@@ -46,7 +39,7 @@ function KeywordResultsPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 p-8">
+    <div className="w-full bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white border-2 border-black p-8">
           <div className="flex justify-between items-start mb-6">
@@ -66,28 +59,31 @@ function KeywordResultsPage() {
               onClick={handleBack}
               className="text-blue-500 text-sm hover:underline mb-4"
             >
-              &lt; FILE NAME
+              &lt; Back to file
             </button>
 
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{keyword}</h2>
+              <h2 className="text-xl font-bold">
+                {isLoading ? "Loading..." : keyword || "No keyword"}
+              </h2>
             </div>
 
             <div className="flex gap-4 mb-4">
               <button
                 onClick={handleDownload}
                 className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600"
+                disabled={isLoading || results.length === 0}
               >
                 download
               </button>
               <div className="flex gap-4 text-sm">
                 <span>
                   <span className="font-bold">Ads found:</span>{" "}
-                  {results[0]?.adsFound || 0}
+                  {isLoading ? "..." : adsCount}
                 </span>
                 <span>
                   <span className="font-bold">Links found:</span>{" "}
-                  {results[0]?.linksFound || 0}
+                  {isLoading ? "..." : linksCount}
                 </span>
               </div>
             </div>
@@ -96,19 +92,56 @@ function KeywordResultsPage() {
           <div>
             <h3 className="font-bold mb-4">search results</h3>
             <div className="space-y-4">
-              {results.map((result) => (
-                <div key={result.id} className="border border-gray-300 p-4">
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline mb-2 block"
-                  >
-                    {result.url}
-                  </a>
-                  <p className="text-sm text-gray-700">{result.title}</p>
+              {isLoading ? (
+                <div className="text-center text-gray-500 py-8">
+                  Loading results...
                 </div>
-              ))}
+              ) : results.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  No results found for this query
+                </div>
+              ) : (
+                results.map((result) => (
+                  <div
+                    key={result.id}
+                    className="border border-gray-300 p-4 hover:bg-gray-50"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline font-medium flex-1"
+                      >
+                        {result.title}
+                      </a>
+                      {result.isAd && (
+                        <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                          AD
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={result.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-700 text-sm hover:underline block mb-2"
+                    >
+                      {result.displayUrl || result.url}
+                    </a>
+                    {result.snippet && (
+                      <p className="text-sm text-gray-700">{result.snippet}</p>
+                    )}
+                    <div className="mt-2 flex gap-4 text-xs text-gray-500">
+                      <span>Position: {result.position}</span>
+                      {result.type && (
+                        <span className="capitalize">Type: {result.type}</span>
+                      )}
+                      {result.domain && <span>Domain: {result.domain}</span>}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

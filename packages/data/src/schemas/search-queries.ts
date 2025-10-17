@@ -40,6 +40,3 @@ export const searchQueriesRelations = relations(searchQueries, ({ one, many }) =
   searchResults: many(searchResults),
   searchResultItems: many(searchResultItems),
 }));
-
-export type SearchQuery = typeof searchQueries.$inferSelect;
-export type NewSearchQuery = typeof searchQueries.$inferInsert;
