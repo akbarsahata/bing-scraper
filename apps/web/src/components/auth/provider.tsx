@@ -40,8 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.data?.user) {
           setUser(session.data.user as AuthUser);
         }
-
-        navigate({ to: "/sign-in", search: { redirect: "/app" } });
       } catch (error) {
         console.error("Auth check failed:", error);
       } finally {
