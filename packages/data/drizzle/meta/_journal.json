@@ -8,6 +8,13 @@
       "when": 1760579638958,
       "tag": "0000_giant_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1760867941097,
+      "tag": "0001_loud_metal_master",
+      "breakpoints": true
     }
   ]
 }
