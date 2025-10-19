@@ -29,7 +29,6 @@ function SignInPage() {
 
     try {
       await signIn(formData.email, formData.password);
-      // Navigate to redirect path or default to /app
       navigate({ to: redirect });
     } catch (err: any) {
       setError(err.message || "Failed to sign in");

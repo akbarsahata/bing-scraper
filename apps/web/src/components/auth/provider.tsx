@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check session on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
