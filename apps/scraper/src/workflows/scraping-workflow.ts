@@ -20,6 +20,7 @@ interface ScrapingResult {
 	}>;
 	pageTitle?: string;
 	searchUrl: string;
+	screenshotKey?: string;
 	error?: string;
 }
 
@@ -59,7 +60,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 		// Step 3: Perform scraping
 		const scrapingResult = await step.do('scrape-bing', async () => {
 			try {
-				const result = await this.scrapeBing(queryText);
+				const result = await this.scrapeBing(queryText, queryId, userId);
 
 				console.log(JSON.stringify(result, null, 2));
 
@@ -94,6 +95,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 						totalResults: scrapingResult.totalResults,
 						pageTitle: scrapingResult.pageTitle,
 						searchUrl: scrapingResult.searchUrl,
+						r2ScreenshotKey: scrapingResult.screenshotKey || null,
 						scrapedAt: new Date(),
 						createdAt: new Date(),
 						updatedAt: new Date(),
@@ -105,12 +107,12 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 						position: item.position || index + 1,
 						title: item.title,
 						url: item.url,
-						displayUrl: item.displayUrl,
-						snippet: item.snippet,
-						domain: item.domain,
-						isAd: item.isAd ? 1 : 0,
+						displayUrl: item.displayUrl || null,
+						snippet: item.snippet || null,
+						type: (item.type === 'image' ? 'organic' : item.type) as 'organic' | 'ad' | 'news' | 'video' | 'featured',
+						domain: item.domain || null,
+						isAd: item.isAd,
 						createdAt: new Date(),
-						updatedAt: new Date(),
 					}))
 				);
 
@@ -132,40 +134,152 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 		};
 	}
 
-	private async scrapeBing(queryText: string): Promise<ScrapingResult> {
-		// Use Browser Rendering API
-		// For now, we'll create a simple implementation that fetches the HTML
-		// In production, you'd want to use Puppeteer with Browser Rendering
-
+	private async scrapeBing(queryText: string, queryId: string, userId: string): Promise<ScrapingResult> {
 		const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(queryText)}`;
 
 		try {
-			// Fetch Bing search results
-			const response = await fetch(searchUrl, {
-				headers: {
-					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			// Use Cloudflare Browser Rendering API with Puppeteer
+			const { default: puppeteer } = await import('@cloudflare/puppeteer');
+
+			const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
+			const page = await browser.newPage();
+
+			// Set viewport for consistent rendering
+			await page.setViewport({ width: 1920, height: 1080 });
+
+			// Navigate to Bing search with timeout
+			await page.goto(searchUrl, {
+				waitUntil: 'networkidle2',
+				timeout: 30000,
+			});
+
+			// Wait for search results container
+			await page.waitForSelector('#b_results', { timeout: 10000 });
+
+			// Take screenshot and save to R2
+			const screenshot = await page.screenshot({
+				fullPage: true,
+				type: 'png',
+			});
+
+			// Save screenshot to R2
+			const screenshotKey = `screenshots/${userId}/${queryId}_${Date.now()}.png`;
+			await this.env.STORAGE.put(screenshotKey, screenshot, {
+				httpMetadata: {
+					contentType: 'image/png',
+				},
+				customMetadata: {
+					userId,
+					queryId,
+					queryText,
+					uploadedAt: new Date().toISOString(),
 				},
 			});
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+			// Extract search results using page.evaluate
+			// Note: Code inside evaluate() runs in browser context, so DOM APIs are available
+			// TypeScript errors about 'document' are expected and can be ignored
+			// @ts-ignore - Browser context code
+			const scrapedData = await page.evaluate(() => {
+				const results: Array<{
+					position: number;
+					title: string;
+					url: string;
+					displayUrl?: string;
+					snippet?: string;
+					type: string;
+					domain?: string;
+					isAd: boolean;
+				}> = [];
 
-			const html = await response.text();
+				// Get organic search results
+				// @ts-ignore - Browser DOM available in evaluate context
+				const organicResults = document.querySelectorAll('#b_results > li.b_algo');
+				organicResults.forEach((result: any, index: number) => {
+					const titleElement = result.querySelector('h2 a') as HTMLAnchorElement;
+					const snippetElement = result.querySelector('.b_caption p, .b_algoSlug');
+					const citeElement = result.querySelector('cite');
 
-			// Parse HTML to extract results
-			// Note: This is a simplified parser. In production, you'd want to use
-			// the Browser Rendering API with Puppeteer for accurate scraping
-			const items = this.parseSearchResults(html);
+					if (titleElement && (titleElement as any).href) {
+						const url = (titleElement as any).href;
+						const title = (titleElement as any).textContent?.trim() || '';
+						const snippet = snippetElement?.textContent?.trim() || '';
+						const displayUrl = citeElement?.textContent?.trim() || '';
+
+						let domain = '';
+						try {
+							domain = new URL(url).hostname;
+						} catch (e) {
+							// Invalid URL
+						}
+
+						results.push({
+							position: index + 1,
+							title,
+							url,
+							displayUrl,
+							snippet,
+							type: 'organic',
+							domain,
+							isAd: false,
+						});
+					}
+				});
+
+				// Get sponsored/ad results
+				// @ts-ignore - Browser DOM available in evaluate context
+				const adResults = document.querySelectorAll('#b_results > li.b_ad, #b_results li[data-ad]');
+				adResults.forEach((result: any) => {
+					const titleElement = result.querySelector('h2 a, .b_adlabel + div a') as HTMLAnchorElement;
+					const snippetElement = result.querySelector('.b_caption p, .b_adSlug');
+					const citeElement = result.querySelector('cite');
+
+					if (titleElement && (titleElement as any).href) {
+						const url = (titleElement as any).href;
+						const title = (titleElement as any).textContent?.trim() || '';
+						const snippet = snippetElement?.textContent?.trim() || '';
+						const displayUrl = citeElement?.textContent?.trim() || '';
+
+						let domain = '';
+						try {
+							domain = new URL(url).hostname;
+						} catch (e) {
+							// Invalid URL
+						}
+
+						results.push({
+							position: results.length + 1,
+							title,
+							url,
+							displayUrl,
+							snippet,
+							type: 'ad',
+							domain,
+							isAd: true,
+						});
+					}
+				});
+
+				return {
+					results,
+					// @ts-ignore - Browser DOM available in evaluate context
+					pageTitle: document.title,
+				};
+			});
+
+			// Close browser
+			await browser.close();
 
 			return {
 				success: true,
-				totalResults: items.length,
-				items,
-				pageTitle: this.extractTitle(html),
+				totalResults: scrapedData.results.length,
+				items: scrapedData.results,
+				pageTitle: scrapedData.pageTitle,
 				searchUrl,
+				screenshotKey,
 			};
 		} catch (error) {
+			console.error('Browser rendering failed:', error);
 			throw error;
 		}
 	}
