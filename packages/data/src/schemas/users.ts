@@ -1,5 +1,5 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { sessions } from "./sessions";
 import { accounts } from "./accounts";
 import { uploadedFiles } from "./uploaded-files";
@@ -9,13 +9,19 @@ import { searchResults } from "./search-results";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
+  name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  username: text("username").unique(),
-  name: text("name"),
-  emailVerified: integer("email_verified", { mode: "boolean" }).default(false),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .default(false)
+    .notNull(),
   image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -26,6 +32,3 @@ export const usersRelations = relations(users, ({ many }) => ({
   scrapingTasks: many(scrapingTasks),
   searchResults: many(searchResults),
 }));
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;

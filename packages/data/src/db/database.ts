@@ -8,11 +8,13 @@ import * as seacrchResults from "../schemas/search-results";
 import * as sessions from "../schemas/sessions";
 import * as uploadedFiles from "../schemas/uploaded-files";
 import * as users from "../schemas/users";
+import { verifications } from '@/schemas/verifications';
 
 const schema = {
   ...accounts,
   ...sessions,
   ...users,
+  ...verifications,
   ...scrapingTasks,
   ...searchQueries,
   ...seacrchResults,
