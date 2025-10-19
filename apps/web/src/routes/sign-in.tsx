@@ -29,8 +29,6 @@ function SignInPage() {
 
     try {
       await signIn(formData.email, formData.password);
-      // Wait a tick to ensure localStorage is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
       // Navigate to redirect path or default to /app
       navigate({ to: redirect });
     } catch (err: any) {

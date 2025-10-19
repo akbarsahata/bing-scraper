@@ -1,14 +1,13 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
+import { httpBatchLink } from "@trpc/client";
 import { StrictMode, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { RouterProvider } from "@tanstack/react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
 import "./styles/globals.css";
 
-import { createRouter } from "./router";
 import reportWebVitals from "./reportWebVitals";
+import { createRouter } from "./router";
 import { trpcReact } from "./utils/trpc-types";
-import { AuthProvider } from "./components/auth/provider.tsx";
 
 const router = createRouter();
 
@@ -35,9 +34,7 @@ function App() {
   return (
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <RouterProvider router={router} />
-        </AuthProvider>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     </trpcReact.Provider>
   );
@@ -50,7 +47,7 @@ if (!rootElement.innerHTML) {
   root.render(
     <StrictMode>
       <App />
-    </StrictMode>,
+    </StrictMode>
   );
 }
 // If you want to start measuring performance in your app, pass a function

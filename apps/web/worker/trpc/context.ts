@@ -1,5 +1,5 @@
-import { Db } from '@repo/data/database';
 import { getAuth } from "@repo/data/auth";
+import { Db } from "@repo/data/database";
 
 export async function createContext({
   req,
@@ -13,23 +13,19 @@ export async function createContext({
   workerCtx: ExecutionContext;
 }) {
   let userId: string | null = null;
-  
-  const authHeader = req.headers.get("Authorization");
-  if (authHeader) {
-    try {
-      const auth = getAuth(db);
-      const session = await auth.api.getSession({
-        headers: new Headers({
-          Authorization: authHeader,
-        }),
-      });
-      
-      if (session?.user) {
-        userId = session.user.id;
-      }
-    } catch (error) {
-      console.error("Failed to get session:", error);
+
+  try {
+    const auth = getAuth(db);
+    // Better Auth automatically reads cookies from the request
+    const session = await auth.api.getSession({
+      headers: req.headers,
+    });
+
+    if (session?.user) {
+      userId = session.user.id;
     }
+  } catch (error) {
+    console.error("Failed to get session:", error);
   }
 
   return {

@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { trpcReact } from "../../utils/trpc-types";
+import { authClient } from "./auth-client";
 
 interface AuthUser {
   id: string;
@@ -25,42 +25,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  const signInMutation = trpcReact.auth.signIn.useMutation();
-  const signUpMutation = trpcReact.auth.signUp.useMutation();
-  const signOutMutation = trpcReact.auth.signOut.useMutation();
-
   // Check session on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("auth_token");
-      
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        // Use fetch directly to avoid circular dependency
-        const response = await fetch("/trpc/auth.getSession", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json() as any;
-          if (data.result?.data?.user) {
-            setUser(data.result.data.user);
-          } else {
-            localStorage.removeItem("auth_token");
-          }
-        } else {
-          localStorage.removeItem("auth_token");
+        const session = await authClient.getSession();
+        
+        if (session?.data?.user) {
+          setUser(session.data.user as AuthUser);
         }
       } catch (error) {
         console.error("Auth check failed:", error);
-        localStorage.removeItem("auth_token");
       } finally {
         setIsLoading(false);
       }
@@ -71,11 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const result = await signInMutation.mutateAsync({ email, password });
+      const result = await authClient.signIn.email({
+        email,
+        password,
+      });
       
-      if (result.token) {
-        localStorage.setItem("auth_token", result.token);
-        setUser(result.user);
+      if (result.data?.user) {
+        setUser(result.data.user as AuthUser);
+      } else if (result.error) {
+        throw new Error(result.error.message || "Failed to sign in");
       }
     } catch (error) {
       throw error;
@@ -84,7 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (name: string, email: string, password: string) => {
     try {
-      await signUpMutation.mutateAsync({ name, email, password });
+      const result = await authClient.signUp.email({
+        email,
+        password,
+        name,
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to sign up");
+      }
     } catch (error) {
       throw error;
     }
@@ -92,11 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await signOutMutation.mutateAsync();
+      await authClient.signOut();
     } catch (error) {
       console.error("Sign out error:", error);
     } finally {
-      localStorage.removeItem("auth_token");
       setUser(null);
       navigate({ to: "/sign-in", search: { redirect: "/app" } });
     }

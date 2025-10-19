@@ -1,3 +1,4 @@
+import { getAuth } from "@repo/data/auth";
 import { getDb, initDatabase } from "@repo/data/database";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createContext } from "./trpc/context";
@@ -20,6 +21,13 @@ export default {
           createContext({ req: request, env: env, workerCtx: ctx, db }),
       });
     }
+
+    if (url.pathname.startsWith("/api/auth/")) {
+      const auth = getAuth(db);
+
+      return auth.handler(request);
+    }
+
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
