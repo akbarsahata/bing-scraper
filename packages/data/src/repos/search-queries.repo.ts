@@ -1,10 +1,13 @@
-import { NewSearchQuerySchema, SearchQuerySchema } from '@/zod/search-queries';
+import type { Db } from "@/db/database";
+import { searchQueries } from "@/schemas/search-queries";
+import { NewSearchQuerySchema, SearchQuerySchema } from "@/zod/search-queries";
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { Db } from "../db/database";
-import { searchQueries } from "../schemas/search-queries";
 
 export const searchQueriesRepo = {
-  create: async (db: Db, data: NewSearchQuerySchema): Promise<SearchQuerySchema> => {
+  create: async (
+    db: Db,
+    data: NewSearchQuerySchema
+  ): Promise<SearchQuerySchema> => {
     const now = new Date();
     const query = await db
       .insert(searchQueries)
@@ -19,10 +22,7 @@ export const searchQueriesRepo = {
     return query;
   },
 
-  createMany: async (
-    db: Db,
-    queries: NewSearchQuerySchema[]
-  ) => {
+  createMany: async (db: Db, queries: NewSearchQuerySchema[]) => {
     const now = new Date();
     const queriesToInsert = queries.map((q) => ({
       ...q,
@@ -45,10 +45,7 @@ export const searchQueriesRepo = {
     });
   },
 
-  findByFileId: async (
-    db: Db,
-    uploadedFileId: string
-  ) => {
+  findByFileId: async (db: Db, uploadedFileId: string) => {
     return db
       .select()
       .from(searchQueries)
@@ -66,10 +63,7 @@ export const searchQueriesRepo = {
       .all();
   },
 
-  findByStatus: async (
-    db: Db,
-    status: SearchQuerySchema["status"]
-  ) => {
+  findByStatus: async (db: Db, status: SearchQuerySchema["status"]) => {
     return db
       .select()
       .from(searchQueries)

@@ -24,10 +24,6 @@
       "types": "./dist/zod/*.d.ts",
       "default": "./dist/zod/*.js"
     },
-    "./durable-objects-helpers": {
-      "types": "./dist/durable-objects-helpers/*.d.ts",
-      "default": "./dist/durable-objects-helpers/*.js"
-    },
     "./repos/*": {
       "types": "./dist/repos/*.d.ts",
       "default": "./dist/repos/*.js"

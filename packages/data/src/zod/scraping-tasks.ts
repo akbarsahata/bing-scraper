@@ -1,6 +1,6 @@
+import { scrapingTasks } from "@/schemas/scraping-tasks";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { scrapingTasks } from "../schemas/scraping-tasks";
 
 export const scrapingTaskSchema = createSelectSchema(scrapingTasks);
 export const newScrapingTaskSchema = createInsertSchema(scrapingTasks);

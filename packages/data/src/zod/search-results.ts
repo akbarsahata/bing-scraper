@@ -1,6 +1,6 @@
+import { searchResults } from "@/schemas/search-results";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { searchResults } from "../schemas/search-results";
 
 export const searchResultSchema = createSelectSchema(searchResults);
 export const newSearchResultSchema = createInsertSchema(searchResults);

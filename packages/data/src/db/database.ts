@@ -1,14 +1,14 @@
 import { D1Database } from "@cloudflare/workers-types";
 import { drizzle, DrizzleD1Database } from "drizzle-orm/d1";
-import * as accounts from "../schemas/accounts";
-import * as scrapingTasks from "../schemas/scraping-tasks";
-import * as searchQueries from "../schemas/search-queries";
-import * as searchResultItems from "../schemas/search-result-items";
-import * as seacrchResults from "../schemas/search-results";
-import * as sessions from "../schemas/sessions";
-import * as uploadedFiles from "../schemas/uploaded-files";
-import * as users from "../schemas/users";
-import { verifications } from '@/schemas/verifications';
+import * as accounts from "@/schemas/accounts";
+import * as scrapingTasks from "@/schemas/scraping-tasks";
+import * as searchQueries from "@/schemas/search-queries";
+import * as searchResultItems from "@/schemas/search-result-items";
+import * as seacrchResults from "@/schemas/search-results";
+import * as sessions from "@/schemas/sessions";
+import * as uploadedFiles from "@/schemas/uploaded-files";
+import * as users from "@/schemas/users";
+import * as verifications from "@/schemas/verifications";
 
 const schema = {
   ...accounts,

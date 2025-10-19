@@ -1,10 +1,10 @@
+import type { Db } from "@/db/database";
+import { uploadedFiles } from "@/schemas/uploaded-files";
 import {
   NewUploadedFileSchema,
   UploadedFileSchema,
 } from "@/zod/uploaded-files";
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { Db } from "../db/database";
-import { uploadedFiles } from "../schemas/uploaded-files";
 
 export const uploadedFilesRepo = {
   create: async (
@@ -20,10 +20,7 @@ export const uploadedFilesRepo = {
     }
   },
 
-  getById: async (
-    db: Db,
-    id: string
-  ) => {
+  getById: async (db: Db, id: string) => {
     const file = await db.query.uploadedFiles.findFirst({
       where: eq(uploadedFiles.id, id),
       with: {
@@ -95,10 +92,7 @@ export const uploadedFilesRepo = {
       .limit(limit);
   },
 
-  getAll: async (
-    db: Db,
-    userId: string,
-  ): Promise<UploadedFileSchema[]> => {
+  getAll: async (db: Db, userId: string): Promise<UploadedFileSchema[]> => {
     return await db
       .select()
       .from(uploadedFiles)
