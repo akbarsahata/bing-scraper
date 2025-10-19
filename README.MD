@@ -59,31 +59,374 @@ This project provides a comprehensive solution for uploading CSV files containin
 ```
 bing-scraper/
 ├── apps/
-│   ├── web/                      # Main web application
+│   ├── web/                          # Main web application
 │   │   ├── src/
-│   │   │   ├── components/       # React components
-│   │   │   │   └── auth/         # Authentication components
-│   │   │   ├── routes/           # File-based routing
-│   │   │   │   ├── __root.tsx    # Root layout
-│   │   │   │   ├── index.tsx     # Landing page
-│   │   │   │   └── app/          # Authenticated routes
-│   │   │   │       └── _authed/  # Protected dashboard
-│   │   │   ├── styles/           # Global styles
-│   │   │   ├── utils/            # Utility functions
-│   │   │   ├── main.tsx          # Application entry point
-│   │   │   └── router.tsx        # Router configuration
-│   │   ├── worker/               # Cloudflare Worker backend
-│   │   │   ├── index.ts          # Worker entry point
-│   │   │   └── trpc/             # tRPC API
-│   │   │       ├── router.ts     # Main router
-│   │   │       ├── context.ts    # Request context
-│   │   │       ├── trpc-instance.ts
-│   │   │       └── routers/      # API route handlers
-│   │   ├── wrangler.jsonc        # Cloudflare Worker config
-│   │   ├── vite.config.ts        # Vite configuration
+│   │   │   ├── components/           # React components
+│   │   │   │   ├── auth/             # Auth provider & hooks
+│   │   │   │   ├── layout/           # Layout components
+│   │   │   │   └── ui/               # UI components (Cards, States)
+│   │   │   ├── routes/               # File-based routing
+│   │   │   │   ├── __root.tsx        # Root layout with AuthProvider
+│   │   │   │   ├── index.tsx         # Landing page
+│   │   │   │   ├── sign-in.tsx       # Sign-in page
+│   │   │   │   ├── sign-up.tsx       # Sign-up page
+│   │   │   │   └── app/              # Authenticated routes
+│   │   │   │       ├── _authed.tsx   # Protected route wrapper
+│   │   │   │       └── _authed/      # Protected dashboard pages
+│   │   │   ├── styles/               # Global styles (Tailwind CSS)
+│   │   │   ├── hooks/                # Custom React hooks
+│   │   │   ├── utils/                # Utility functions & tRPC client
+│   │   │   ├── main.tsx              # Application entry point
+│   │   │   └── router.tsx            # Router configuration
+│   │   ├── worker/                   # Cloudflare Worker backend
+│   │   │   ├── index.ts              # Worker entry point
+│   │   │   └── trpc/                 # tRPC API
+│   │   │       ├── router.ts         # Main router
+│   │   │       ├── context.ts        # Request context (auth, db)
+│   │   │       ├── trpc-instance.ts  # tRPC initialization
+│   │   │       └── routers/          # API route handlers
+│   │   │           ├── auth.ts       # Authentication endpoints
+│   │   │           ├── files.ts      # File upload & management
+│   │   │           └── queries.ts    # Query management
+│   │   ├── public/                   # Static assets
+│   │   ├── wrangler.jsonc            # Cloudflare Worker config
+│   │   ├── vite.config.ts            # Vite configuration
+│   │   ├── tsconfig.json             # TypeScript config
 │   │   └── package.json
-│   └── scraper/                  # Scraping service (to be implemented)
-│       └── (Background jobs, workflows, browser automation)
-└── packages/                     # Shared packages (to be implemented)
-    └── database/                 # Database schema & migrations
+│   └── scraper/                      # Scraping worker
+│       ├── src/
+│       │   ├── index.ts              # Queue consumer & worker
+│       │   └── workflows/            # Cloudflare Workflows
+│       │       └── scraping-workflow.ts  # Main scraping orchestration
+│       ├── wrangler.jsonc            # Scraper config (queues, workflows, browser)
+│       ├── tsconfig.json
+│       └── package.json
+├── packages/
+│   └── data/                         # Shared data layer
+│       ├── src/
+│       │   ├── auth.ts               # Better Auth configuration
+│       │   ├── db/
+│       │   │   └── database.ts       # Database initialization
+│       │   ├── schemas/              # Drizzle ORM schemas
+│       │   │   ├── users.ts
+│       │   │   ├── sessions.ts
+│       │   │   ├── accounts.ts
+│       │   │   ├── uploaded-files.ts
+│       │   │   ├── search-queries.ts
+│       │   │   ├── scraping-tasks.ts
+│       │   │   ├── search-results.ts
+│       │   │   └── search-result-items.ts
+│       │   ├── repos/                # Repository pattern
+│       │   │   ├── uploaded-files.repo.ts
+│       │   │   ├── search-queries.repo.ts
+│       │   │   ├── scraping-tasks.repo.ts
+│       │   │   └── search-results.repo.ts
+│       │   └── zod/                  # Zod validation schemas
+│       │       ├── queue.ts          # Queue message schemas
+│       │       ├── scraping-tasks.ts
+│       │       ├── search-queries.ts
+│       │       └── ...
+│       ├── drizzle/                  # Database migrations
+│       ├── drizzle.config.ts         # Drizzle configuration
+│       ├── tsconfig.json
+│       └── package.json
+├── docs/                             # Documentation
+│   ├── AUTH_IMPLEMENTATION.md        # Auth system details
+│   ├── AUTH_QUICK_REFERENCE.md       # Quick auth guide
+│   └── SCRAPING_IMPLEMENTATION.md    # Scraping system details
+├── pnpm-workspace.yaml               # pnpm workspace configuration
+├── package.json                      # Root package.json
+├── REQUIREMENTS.MD                   # Detailed requirements
+└── README.MD                         # This file
 ```
+
+## How It Works
+
+### 1. File Upload & Processing
+
+```mermaid
+sequenceDiagram
+    User->>Web UI: Upload CSV file
+    Web UI->>tRPC API: POST /files.upload
+    tRPC API->>R2: Store CSV file
+    tRPC API->>D1: Create file record
+    tRPC API->>D1: Create query records
+    tRPC API->>Queue: Emit scraping messages
+    Queue->>Scraper: Process messages
+```
+
+### 2. Scraping Workflow
+
+```mermaid
+sequenceDiagram
+    Queue->>Scraper: SCRAPE_QUERY message
+    Scraper->>Workflow: Trigger workflow
+    Workflow->>D1: Create scraping task
+    Workflow->>D1: Mark task as started
+    Workflow->>Bing: Fetch search results
+    Bing-->>Workflow: HTML response
+    Workflow->>Workflow: Parse results
+    Workflow->>D1: Save search results
+    Workflow->>D1: Mark task as completed
+    Workflow-->>Scraper: Return success
+```
+
+### 3. Authentication Flow
+
+```mermaid
+sequenceDiagram
+    User->>Sign-in Page: Enter credentials
+    Sign-in Page->>Better Auth: POST /api/auth/sign-in/email
+    Better Auth->>D1: Validate credentials
+    Better Auth-->>Sign-in Page: Set session cookie
+    Sign-in Page->>Dashboard: Navigate
+    Dashboard->>AuthProvider: Check session
+    AuthProvider->>Better Auth: GET /api/auth/session
+    Better Auth-->>AuthProvider: User data
+    AuthProvider-->>Dashboard: Authenticated
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and pnpm
+- Cloudflare account
+- Wrangler CLI installed (`npm install -g wrangler`)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/akbarsahata/bing-scraper.git
+cd bing-scraper
+```
+
+2. **Install dependencies**
+```bash
+pnpm install
+```
+
+3. **Set up Cloudflare resources**
+
+Create required resources using Wrangler or Cloudflare Dashboard:
+
+```bash
+# Create D1 database
+wrangler d1 create bing-scraper-db
+
+# Create R2 bucket
+wrangler r2 bucket create bing-scraper-storage
+
+# Create Queue
+wrangler queues create bing-scraper-queue
+```
+
+4. **Update wrangler.jsonc files**
+
+Update the `database_id` in both `apps/web/wrangler.jsonc` and `apps/scraper/wrangler.jsonc` with your D1 database ID.
+
+5. **Run database migrations**
+```bash
+cd packages/data
+pnpm run migrate
+```
+
+6. **Build the data package**
+```bash
+pnpm run build
+```
+
+### Development
+
+Run both applications in development mode:
+
+```bash
+# Terminal 1: Web app
+cd apps/web
+pnpm run dev
+
+# Terminal 2: Scraper worker (optional for testing)
+cd apps/scraper
+pnpm run dev
+```
+
+Access the application at `http://localhost:5173`
+
+### Deployment
+
+Deploy to Cloudflare:
+
+```bash
+# Deploy web app
+cd apps/web
+pnpm run deploy
+
+# Deploy scraper worker
+cd ../scraper
+pnpm run deploy
+```
+
+## Database Schema
+
+The application uses 8 main tables:
+
+- **users** - User accounts
+- **sessions** - Authentication sessions
+- **accounts** - OAuth provider accounts
+- **uploaded_files** - CSV file metadata
+- **search_queries** - Individual search queries
+- **scraping_tasks** - Async scraping jobs
+- **search_results** - Search result metadata
+- **search_result_items** - Individual result items
+
+See [REQUIREMENTS.MD](./REQUIREMENTS.MD) for the complete schema.
+
+## API Endpoints
+
+### Authentication (`/api/auth/*`)
+- `POST /sign-in/email` - Email/password sign-in
+- `POST /sign-up/email` - Create new account
+- `POST /sign-out` - Sign out user
+- `GET /session` - Get current session
+
+### Files (`/trpc/files.*`)
+- `files.upload` - Upload CSV file
+- `files.getAll` - List user's files
+- `files.getById` - Get file details
+- `files.getRecent` - Get recent files
+
+### Queries (`/trpc/queries.*`)
+- `queries.getByFileId` - Get queries for a file
+- `queries.getResultsByQueryId` - Get results for a query
+
+## Environment Variables
+
+Configure in Cloudflare dashboard or `wrangler.jsonc`:
+
+```bash
+# Not required for basic setup
+# All configuration is in wrangler.jsonc
+```
+
+## Testing
+
+```bash
+# Run tests
+pnpm run test
+
+# Run tests with coverage
+pnpm run test:coverage
+```
+
+## Features in Detail
+
+### CSV Upload
+- Validates CSV format and structure
+- Requires "keyword" column
+- Limits to 100 keywords per file
+- Stores files in R2 for audit trail
+
+### Asynchronous Processing
+- Uses Cloudflare Queues for job distribution
+- Cloudflare Workflows for orchestration
+- Automatic retry on failures
+- Progress tracking per query
+
+### Search Result Extraction
+- Fetches Bing search results
+- Parses organic results
+- Extracts title, URL, snippet, domain
+- Identifies ads vs organic results
+- Stores position information
+
+### User Management
+- Secure authentication with Better Auth
+- Session management with cookies
+- Protected routes with route guards
+- Per-user data isolation
+
+## Architecture Decisions
+
+### Why Cloudflare?
+- **Global Edge Network**: Low latency worldwide
+- **Integrated Platform**: Workers, D1, R2, Queues all work together
+- **Cost Effective**: Pay-per-use with generous free tier
+- **Developer Experience**: Great DX with Wrangler
+
+### Why tRPC?
+- **Type Safety**: End-to-end type safety from DB to UI
+- **No Code Generation**: Types inferred from implementation
+- **Developer Experience**: Autocomplete and type checking
+
+### Why Repository Pattern?
+- **Separation of Concerns**: Business logic separate from data access
+- **Testability**: Easy to mock for unit tests
+- **Maintainability**: Centralized data access logic
+- **Reusability**: Share logic between workers
+
+### Why Workflows?
+- **Reliability**: Automatic retries and state persistence
+- **Observability**: Built-in monitoring and logs
+- **Orchestration**: Complex multi-step processes
+- **Durable Execution**: Survives worker restarts
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Documentation
+
+- [Authentication Guide](./docs/AUTH_IMPLEMENTATION.md)
+- [Auth Quick Reference](./docs/AUTH_QUICK_REFERENCE.md)
+- [Scraping Implementation](./docs/SCRAPING_IMPLEMENTATION.md)
+- [Requirements](./REQUIREMENTS.MD)
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Check existing documentation
+- Review Cloudflare Workers documentation
+
+## Roadmap
+
+### Phase 1: Core Features ✅
+- [x] User authentication
+- [x] CSV file upload
+- [x] Query management
+- [x] Asynchronous scraping
+- [x] Result storage
+
+### Phase 2: Enhanced Scraping 🚧
+- [ ] Browser Rendering with Puppeteer
+- [ ] Screenshot capture
+- [ ] Pagination support
+- [ ] Rich snippet extraction
+- [ ] Multiple search engines
+
+### Phase 3: Advanced Features 📋
+- [ ] Real-time progress updates (WebSockets/SSE)
+- [ ] Scheduled recurring scrapes
+- [ ] Result comparison and alerts
+- [ ] Export formats (CSV, JSON, Excel)
+- [ ] API rate limiting
+- [ ] User dashboards and analytics
+
+## Acknowledgments
+
+Built with:
+- [Cloudflare Workers](https://workers.cloudflare.com/)
+- [Better Auth](https://better-auth.com/)
+- [tRPC](https://trpc.io/)
+- [TanStack Router](https://tanstack.com/router)
+- [Drizzle ORM](https://orm.drizzle.team/)
+- [Tailwind CSS](https://tailwindcss.com/)

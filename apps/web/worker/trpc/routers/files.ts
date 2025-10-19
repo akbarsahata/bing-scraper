@@ -114,13 +114,45 @@ export const filesRouter = t.router({
 
       await searchQueriesRepo.createMany(db, searchQueryRecords);
 
+      // Update file status to processing
+      await uploadedFilesRepo.updateStatus(db, fileId, "processing");
+
+      // Emit messages to the scraping queue for each query
+      for (const queryRecord of searchQueryRecords) {
+        try {
+          await env.QUEUE.send({
+            type: "SCRAPE_QUERY",
+            data: {
+              queryId: queryRecord.id,
+              uploadedFileId: fileId,
+              userId,
+              queryText: queryRecord.queryText,
+              retryCount: 0,
+            },
+          });
+
+          // Update query status to queued
+          await searchQueriesRepo.updateStatus(db, queryRecord.id, "queued");
+        } catch (error) {
+          console.error(`Failed to queue query ${queryRecord.id}:`, error);
+          await searchQueriesRepo.updateStatus(
+            db,
+            queryRecord.id,
+            "failed",
+            `Failed to queue: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          );
+        }
+      }
+
       return {
         fileId: uploadedFile.id,
         fileName: uploadedFile.fileName,
         r2Key: uploadedFile.r2Key,
         totalKeywords: uploadedFile.totalQueries,
-        status: uploadedFile.status,
-        message: `File uploaded successfully with ${keywords.length} keywords`,
+        status: "processing",
+        message: `File uploaded successfully with ${keywords.length} keywords. Scraping jobs queued.`,
       };
     }),
   getRecent: t.procedure

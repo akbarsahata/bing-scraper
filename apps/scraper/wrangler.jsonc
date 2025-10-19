@@ -42,5 +42,12 @@
 	},
 	"browser": {
 		"binding": "VIRTUAL_BROWSER"
-	}
+	},
+	"workflows": [
+		{
+			"name": "scraping-workflow",
+			"binding": "SCRAPING_WORKFLOW",
+			"class_name": "ScrapingWorkflow"
+		}
+	]
 }

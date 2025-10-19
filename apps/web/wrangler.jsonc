@@ -29,5 +29,14 @@
       "database_name": "bing-scraper-db",
       "remote": true
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "QUEUE",
+        "queue": "bing-scraper-queue",
+        "remote": true
+      }
+    ]
+  }
 }
