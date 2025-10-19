@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { trpcReact } from "@/utils/trpc-types";
 
 export const Route = createFileRoute("/sign-up")({
   component: SignUpPage,
@@ -8,16 +9,41 @@ export const Route = createFileRoute("/sign-up")({
 function SignUpPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: "",
+    name: "",
+    email: "",
     password: "",
     confirmPassword: "",
+  });
+  const [error, setError] = useState<string>("");
+
+  const signUpMutation = trpcReact.auth.signUp.useMutation({
+    onSuccess: () => {
+      navigate({ to: "/sign-in", search: { redirect: "/app" } });
+    },
+    onError: (error) => {
+      setError(error.message || "Failed to sign up");
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement sign up logic with Better Auth
-    console.log("Sign up:", formData);
-    navigate({ to: "/sign-in" });
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    signUpMutation.mutate({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+    });
   };
 
   return (
@@ -29,17 +55,38 @@ function SignUpPage() {
             <p className="text-sm text-gray-600">scrape bing all you want!</p>
           </div>
 
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <input
                 type="text"
-                placeholder="username"
-                value={formData.username}
+                placeholder="name"
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
+                disabled={signUpMutation.isPending}
+              />
+            </div>
+
+            <div>
+              <input
+                type="email"
+                placeholder="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
+                required
+                disabled={signUpMutation.isPending}
               />
             </div>
 
@@ -53,6 +100,8 @@ function SignUpPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
+                minLength={8}
+                disabled={signUpMutation.isPending}
               />
             </div>
 
@@ -66,19 +115,21 @@ function SignUpPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
+                disabled={signUpMutation.isPending}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors"
+              className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={signUpMutation.isPending}
             >
-              sign up
+              {signUpMutation.isPending ? "signing up..." : "sign up"}
             </button>
           </form>
 
           <div className="text-center mt-4">
-            <Link to="/sign-in" className="text-blue-500 text-sm hover:underline">
+            <Link to="/sign-in" search={{ redirect: "/app" }} className="text-blue-500 text-sm hover:underline">
               sign in
             </Link>
           </div>

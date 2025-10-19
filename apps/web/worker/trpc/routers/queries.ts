@@ -14,8 +14,15 @@ export const queriesRouter = t.router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+      const { db, userId } = ctx;
       const { queryId, uploadedFileId } = input;
+
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in",
+        });
+      }
 
       const query = await searchQueriesRepo.findById(db, queryId);
 

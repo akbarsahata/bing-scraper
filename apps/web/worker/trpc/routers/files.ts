@@ -14,9 +14,14 @@ export const filesRouter = t.router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { env, db } = ctx;
+      const { env, db, userId } = ctx;
 
-      const userId = ctx.userInfo.userId;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to upload files",
+        });
+      }
 
       const csvContent = atob(input.fileContent);
 
@@ -127,8 +132,14 @@ export const filesRouter = t.router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const userId = ctx.userInfo.userId;
+      const { db, userId } = ctx;
+
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in",
+        });
+      }
 
       const limit = input?.limit ?? 10;
       const files = await uploadedFilesRepo.getRecent(db, userId, limit);
@@ -151,8 +162,14 @@ export const filesRouter = t.router({
         .optional()
     )
     .query(async ({ ctx }) => {
-      const { db } = ctx;
-      const userId = ctx.userInfo.userId;
+      const { db, userId } = ctx;
+
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in",
+        });
+      }
 
       const files = await uploadedFilesRepo.getAll(db, userId);
 
@@ -169,8 +186,14 @@ export const filesRouter = t.router({
   getById: t.procedure
     .input(z.object({ fileId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const userId = ctx.userInfo.userId;
+      const { db, userId } = ctx;
+
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in",
+        });
+      }
 
       const file = await uploadedFilesRepo.getById(db, input.fileId);
 

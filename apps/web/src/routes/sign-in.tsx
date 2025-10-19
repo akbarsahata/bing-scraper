@@ -1,22 +1,49 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
+import { trpcReact } from "@/utils/trpc-types";
 
 export const Route = createFileRoute("/sign-in")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      redirect: (search.redirect as string) || "/app",
+    };
+  },
   component: SignInPage,
 });
 
 function SignInPage() {
   const navigate = useNavigate();
+  const { redirect } = useSearch({ from: "/sign-in" });
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
+  });
+  const [error, setError] = useState<string>("");
+
+  const signInMutation = trpcReact.auth.signIn.useMutation({
+    onSuccess: async (data) => {
+      // Store session token in localStorage
+      if (data.token) {
+        console.log("setting token: ", data.token);
+        localStorage.setItem("auth_token", data.token);
+      }
+      // Navigate to redirect path or default to /app
+      console.log("navigating to: ", redirect);
+      await navigate({ to: redirect });
+    },
+    onError: (error) => {
+      setError(error.message || "Failed to sign in");
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement sign in logic with Better Auth
-    console.log("Sign in:", formData);
-    navigate({ to: "/app" });
+    setError("");
+
+    signInMutation.mutate({
+      email: formData.email,
+      password: formData.password,
+    });
   };
 
   return (
@@ -28,17 +55,24 @@ function SignInPage() {
             <p className="text-sm text-gray-600">scrape bing all you want!</p>
           </div>
 
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <input
-                type="text"
-                placeholder="username"
-                value={formData.username}
+                type="email"
+                placeholder="email"
+                value={formData.email}
                 onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
+                  setFormData({ ...formData, email: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
+                disabled={signInMutation.isPending}
               />
             </div>
 
@@ -52,14 +86,16 @@ function SignInPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
+                disabled={signInMutation.isPending}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors"
+              className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={signInMutation.isPending}
             >
-              sign in
+              {signInMutation.isPending ? "signing in..." : "sign in"}
             </button>
           </form>
 

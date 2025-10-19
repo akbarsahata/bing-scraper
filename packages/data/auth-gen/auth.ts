@@ -1,18 +1,18 @@
-import { getDb } from "@/db/database";
+import { Db } from "@/db/database";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 export const auth: ReturnType<typeof betterAuth> = betterAuth({
-  database: drizzleAdapter(getDb(), { provider: "sqlite", usePlural: true }),
+  database: drizzleAdapter({}, { provider: "sqlite", usePlural: true }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Set to true if you want to require email verification
   },
 });
 
-export const getAuth: () => ReturnType<typeof betterAuth> = () =>
+export const getAuth: (db: Db) => ReturnType<typeof betterAuth> = (db: Db) =>
   betterAuth({
-    database: drizzleAdapter(getDb(), { provider: "sqlite", usePlural: true }),
+    database: drizzleAdapter(db, { provider: "sqlite", usePlural: true }),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false, // Set to true if you want to require email verification

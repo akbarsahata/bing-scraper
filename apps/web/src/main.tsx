@@ -18,6 +18,14 @@ function App() {
       links: [
         httpBatchLink({
           url: "/trpc",
+          headers: () => {
+            const token = localStorage.getItem("auth_token");
+            return token
+              ? {
+                  Authorization: `Bearer ${token}`,
+                }
+              : {};
+          },
         }),
       ],
     })
