@@ -21,6 +21,7 @@ interface ScrapingResult {
 	pageTitle?: string;
 	searchUrl: string;
 	screenshotKey?: string;
+	htmlKey?: string;
 	error?: string;
 }
 
@@ -89,17 +90,18 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					{
 						id: resultId,
 						taskId: task.id,
-						queryId,
-						userId,
-						queryText,
-						totalResults: scrapingResult.totalResults,
-						pageTitle: scrapingResult.pageTitle,
-						searchUrl: scrapingResult.searchUrl,
-						r2ScreenshotKey: scrapingResult.screenshotKey || null,
-						scrapedAt: new Date(),
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					},
+					queryId,
+					userId,
+					queryText,
+					totalResults: scrapingResult.totalResults,
+					pageTitle: scrapingResult.pageTitle,
+					searchUrl: scrapingResult.searchUrl,
+					r2ScreenshotKey: scrapingResult.screenshotKey || null,
+					r2HtmlKey: scrapingResult.htmlKey || null,
+					scrapedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				},
 					scrapingResult.items.map((item, index) => ({
 						id: `item_${crypto.randomUUID()}`,
 						searchResultId: resultId,
@@ -144,29 +146,59 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
 			const page = await browser.newPage();
 
-			// Set viewport for consistent rendering
-			await page.setViewport({ width: 1920, height: 1080 });
+		// Set viewport for consistent rendering
+		await page.setViewport({ width: 1920, height: 1080 });
 
-			// Navigate to Bing search with timeout
-			await page.goto(searchUrl, {
-				waitUntil: 'networkidle2',
-				timeout: 30000,
-			});
+		// Navigate to Bing search with timeout
+		// Wait for networkidle0 to ensure all network requests complete (including AJAX)
+		await page.goto(searchUrl, {
+			waitUntil: 'networkidle0',
+			timeout: 30000,
+		});
 
-			// Wait for search results container
-			await page.waitForSelector('#b_results', { timeout: 10000 });
+		// Wait for search results container
+		await page.waitForSelector('#b_results', { timeout: 10000 });
 
-			// Take screenshot and save to R2
+		// Additional wait to ensure client-side rendering completes
+		// This allows time for JavaScript frameworks to render dynamic content
+		// @ts-ignore - Browser DOM available in evaluate context
+		await page.waitForFunction(
+			() => {
+				// @ts-ignore - Browser DOM available in evaluate context
+				const results = document.querySelectorAll('#b_results > li.b_algo');
+				return results.length > 0;
+			},
+			{ timeout: 10000 }
+		);
+
+		// Extra delay for any lazy-loaded content
+		await new Promise(resolve => setTimeout(resolve, 2000));			// Take screenshot and save to R2
 			const screenshot = await page.screenshot({
 				fullPage: true,
 				type: 'png',
 			});
 
 			// Save screenshot to R2
-			const screenshotKey = `screenshots/${userId}/${queryId}_${Date.now()}.png`;
+			const timestamp = Date.now();
+			const screenshotKey = `screenshots/${userId}/${queryId}_${timestamp}.png`;
 			await this.env.STORAGE.put(screenshotKey, screenshot, {
 				httpMetadata: {
 					contentType: 'image/png',
+				},
+				customMetadata: {
+					userId,
+					queryId,
+					queryText,
+					uploadedAt: new Date().toISOString(),
+				},
+			});
+
+			// Get HTML content and save to R2
+			const htmlContent = await page.content();
+			const htmlKey = `html/${userId}/${queryId}_${timestamp}.html`;
+			await this.env.STORAGE.put(htmlKey, htmlContent, {
+				httpMetadata: {
+					contentType: 'text/html',
 				},
 				customMetadata: {
 					userId,
@@ -277,6 +309,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 				pageTitle: scrapedData.pageTitle,
 				searchUrl,
 				screenshotKey,
+				htmlKey,
 			};
 		} catch (error) {
 			console.error('Browser rendering failed:', error);
