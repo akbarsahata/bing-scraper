@@ -59,7 +59,11 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 		// Step 3: Perform scraping
 		const scrapingResult = await step.do('scrape-bing', async () => {
 			try {
-				return await this.scrapeBing(queryText);
+				const result = await this.scrapeBing(queryText);
+
+				console.log(JSON.stringify(result, null, 2));
+
+				return result;
 			} catch (error) {
 				console.error(`Scraping failed for query ${queryId}:`, error);
 				return {
