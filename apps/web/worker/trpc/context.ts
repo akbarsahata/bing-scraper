@@ -16,7 +16,6 @@ export async function createContext({
 
   try {
     const auth = getAuth(db);
-    // Better Auth automatically reads cookies from the request
     const session = await auth.api.getSession({
       headers: req.headers,
     });

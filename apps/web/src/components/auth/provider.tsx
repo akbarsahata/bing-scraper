@@ -1,4 +1,10 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useEffect,
+} from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { authClient } from "./auth-client";
 
@@ -30,10 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       try {
         const session = await authClient.getSession();
-        
+
         if (session?.data?.user) {
           setUser(session.data.user as AuthUser);
         }
+
+        navigate({ to: "/sign-in", search: { redirect: "/app" } });
       } catch (error) {
         console.error("Auth check failed:", error);
       } finally {
@@ -50,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      
+
       if (result.data?.user) {
         setUser(result.data.user as AuthUser);
       } else if (result.error) {
