@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { trpcReact } from "@/utils/trpc-types";
+import { useAuth } from "../components/auth/provider.tsx";
 
 export const Route = createFileRoute("/sign-up")({
   component: SignUpPage,
@@ -8,6 +8,7 @@ export const Route = createFileRoute("/sign-up")({
 
 function SignUpPage() {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -15,17 +16,9 @@ function SignUpPage() {
     confirmPassword: "",
   });
   const [error, setError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const signUpMutation = trpcReact.auth.signUp.useMutation({
-    onSuccess: () => {
-      navigate({ to: "/sign-in", search: { redirect: "/app" } });
-    },
-    onError: (error) => {
-      setError(error.message || "Failed to sign up");
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -39,11 +32,15 @@ function SignUpPage() {
       return;
     }
 
-    signUpMutation.mutate({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-    });
+    setIsLoading(true);
+    try {
+      await signUp(formData.name, formData.email, formData.password);
+      navigate({ to: "/sign-in", search: { redirect: "/app" } });
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,7 +69,7 @@ function SignUpPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
-                disabled={signUpMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
@@ -86,7 +83,7 @@ function SignUpPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
-                disabled={signUpMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
@@ -101,7 +98,7 @@ function SignUpPage() {
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
                 minLength={8}
-                disabled={signUpMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
@@ -115,16 +112,16 @@ function SignUpPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
-                disabled={signUpMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
             <button
               type="submit"
               className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={signUpMutation.isPending}
+              disabled={isLoading}
             >
-              {signUpMutation.isPending ? "signing up..." : "sign up"}
+              {isLoading ? "signing up..." : "sign up"}
             </button>
           </form>
 

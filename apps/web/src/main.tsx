@@ -8,6 +8,7 @@ import "./styles/globals.css";
 import { createRouter } from "./router";
 import reportWebVitals from "./reportWebVitals";
 import { trpcReact } from "./utils/trpc-types";
+import { AuthProvider } from "./components/auth/provider.tsx";
 
 const router = createRouter();
 
@@ -34,7 +35,9 @@ function App() {
   return (
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
       </QueryClientProvider>
     </trpcReact.Provider>
   );

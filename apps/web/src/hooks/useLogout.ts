@@ -1,19 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
-import { trpcReact } from "@/utils/trpc-types";
+import { useAuth } from "../components/auth/provider.tsx";
 
+/**
+ * Hook to handle logout logic
+ */
 export function useLogout() {
-  const navigate = useNavigate();
-
-  const signOutMutation = trpcReact.auth.signOut.useMutation({
-    onSettled: () => {
-      localStorage.removeItem("auth_token");
-      navigate({ to: "/sign-in", search: { redirect: "/app" } });
-    },
-  });
-
-  const handleLogout = () => {
-    signOutMutation.mutate();
-  };
-
-  return handleLogout;
+  const { signOut } = useAuth();
+  return signOut;
 }

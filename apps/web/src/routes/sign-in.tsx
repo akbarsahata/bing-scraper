@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { trpcReact } from "@/utils/trpc-types";
+import { useAuth } from "../components/auth/provider.tsx";
 
 export const Route = createFileRoute("/sign-in")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -14,36 +14,30 @@ export const Route = createFileRoute("/sign-in")({
 function SignInPage() {
   const navigate = useNavigate();
   const { redirect } = useSearch({ from: "/sign-in" });
+  const { signIn } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [error, setError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const signInMutation = trpcReact.auth.signIn.useMutation({
-    onSuccess: async (data) => {
-      // Store session token in localStorage
-      if (data.token) {
-        console.log("setting token: ", data.token);
-        localStorage.setItem("auth_token", data.token);
-      }
-      // Navigate to redirect path or default to /app
-      console.log("navigating to: ", redirect);
-      await navigate({ to: redirect });
-    },
-    onError: (error) => {
-      setError(error.message || "Failed to sign in");
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
-    signInMutation.mutate({
-      email: formData.email,
-      password: formData.password,
-    });
+    try {
+      await signIn(formData.email, formData.password);
+      // Wait a tick to ensure localStorage is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Navigate to redirect path or default to /app
+      navigate({ to: redirect });
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,7 +66,7 @@ function SignInPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
-                disabled={signInMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
@@ -86,16 +80,16 @@ function SignInPage() {
                 }
                 className="w-full px-4 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 required
-                disabled={signInMutation.isPending}
+                disabled={isLoading}
               />
             </div>
 
             <button
               type="submit"
               className="w-full bg-blue-500 text-white py-2 hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={signInMutation.isPending}
+              disabled={isLoading}
             >
-              {signInMutation.isPending ? "signing in..." : "sign in"}
+              {isLoading ? "signing in..." : "sign in"}
             </button>
           </form>
 

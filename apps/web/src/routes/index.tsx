@@ -5,5 +5,5 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  return <Navigate to="/sign-in" />;
+  return <Navigate to="/sign-in" search={{ redirect: "/app" }} />;
 }
