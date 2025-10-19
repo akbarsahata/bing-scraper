@@ -2,6 +2,7 @@ import { trpcReact } from '@/utils/trpc-types';
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SearchQuerySchema } from "@repo/data/zod-schema/search-queries"
 import { format } from "date-fns";
+import { PageHeader, LoadingState, EmptyState } from "@/components/layout";
 
 export const Route = createFileRoute("/app/_authed/tasks/$taskId/")({
   component: TaskDetailPage,
@@ -33,26 +34,11 @@ function TaskDetailPage() {
     }
   };
 
-  const handleLogout = () => {
-    // TODO: Implement logout logic
-    navigate({ to: "/sign-in" });
-  };
-
   return (
     <div className="min-h-screen w-full bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white border-2 border-black p-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">BING SCRAPER</h1>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-red-600 text-sm hover:underline"
-            >
-              logout
-            </button>
-          </div>
+          <PageHeader />
 
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
@@ -83,13 +69,9 @@ function TaskDetailPage() {
             <h3 className="font-bold mb-4">queries</h3>
             <div className="space-y-2">
               {isLoadingTask ? (
-                <div className="text-center text-gray-500 py-4">
-                  Loading queries...
-                </div>
+                <LoadingState message="Loading queries..." />
               ) : !task?.searchQueries || task.searchQueries.length === 0 ? (
-                <div className="text-center text-gray-500 py-4">
-                  No queries found
-                </div>
+                <EmptyState message="No queries found" />
               ) : (
                 task.searchQueries.map((query) => (
                   <div

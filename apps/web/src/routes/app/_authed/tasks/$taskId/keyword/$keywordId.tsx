@@ -1,5 +1,6 @@
 import { trpcReact } from "@/utils/trpc-types";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { PageHeader, LoadingState, EmptyState } from "@/components/layout";
 
 export const Route = createFileRoute(
   "/app/_authed/tasks/$taskId/keyword/$keywordId"
@@ -20,18 +21,11 @@ function KeywordResultsPage() {
 
   const results = data?.results.items || [];
   
-  // Calculate ads and links count
   const adsCount = results.filter((item) => item.isAd).length;
   const linksCount = results.filter((item) => !item.isAd).length;
 
   const handleDownload = () => {
-    // TODO: Implement download CSV functionality
     console.log("Downloading results for keyword:", keyword);
-  };
-
-  const handleLogout = () => {
-    // TODO: Implement logout logic
-    navigate({ to: "/sign-in" });
   };
 
   const handleBack = () => {
@@ -42,17 +36,7 @@ function KeywordResultsPage() {
     <div className="w-full bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white border-2 border-black p-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">BING SCRAPER</h1>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-red-600 text-sm hover:underline"
-            >
-              logout
-            </button>
-          </div>
+          <PageHeader />
 
           <div className="mb-6">
             <button
@@ -93,13 +77,9 @@ function KeywordResultsPage() {
             <h3 className="font-bold mb-4">search results</h3>
             <div className="space-y-4">
               {isLoading ? (
-                <div className="text-center text-gray-500 py-8">
-                  Loading results...
-                </div>
+                <LoadingState message="Loading results..." />
               ) : results.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  No results found for this query
-                </div>
+                <EmptyState message="No results found for this query" />
               ) : (
                 results.map((result) => (
                   <div

@@ -95,6 +95,17 @@ export const uploadedFilesRepo = {
       .limit(limit);
   },
 
+  getAll: async (
+    db: Db,
+    userId: string,
+  ): Promise<UploadedFileSchema[]> => {
+    return await db
+      .select()
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.userId, userId))
+      .orderBy(desc(uploadedFiles.uploadedAt));
+  },
+
   update: async (
     db: Db,
     id: string,

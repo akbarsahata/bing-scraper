@@ -81,8 +81,6 @@ function RouteComponent() {
         reader.readAsDataURL(selectedFile);
       });
 
-      console.log("File content (base64):", fileContent);
-
       await uploadMutation.mutateAsync({
         fileName: selectedFile.name,
         fileSize: selectedFile.size,

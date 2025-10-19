@@ -107,10 +107,7 @@ export const filesRouter = t.router({
         updatedAt: now,
       }));
 
-      await searchQueriesRepo.createMany(
-        db,
-        searchQueryRecords
-      );
+      await searchQueriesRepo.createMany(db, searchQueryRecords);
 
       return {
         fileId: uploadedFile.id,
@@ -135,6 +132,29 @@ export const filesRouter = t.router({
 
       const limit = input?.limit ?? 10;
       const files = await uploadedFilesRepo.getRecent(db, userId, limit);
+
+      return files.map((file) => ({
+        id: file.id,
+        fileName: file.fileName,
+        uploadedAt: file.uploadedAt,
+        totalQueries: file.totalQueries,
+        processedQueries: file.processedQueries,
+        status: file.status,
+      }));
+    }),
+  getAll: t.procedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(50).default(10),
+        })
+        .optional()
+    )
+    .query(async ({ ctx }) => {
+      const { db } = ctx;
+      const userId = ctx.userInfo.userId;
+
+      const files = await uploadedFilesRepo.getAll(db, userId);
 
       return files.map((file) => ({
         id: file.id,

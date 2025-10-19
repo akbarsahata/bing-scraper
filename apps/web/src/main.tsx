@@ -9,7 +9,6 @@ import { createRouter } from "./router";
 import reportWebVitals from "./reportWebVitals";
 import { trpcReact } from "./utils/trpc-types";
 
-// Create a new router instance
 const router = createRouter();
 
 function App() {
