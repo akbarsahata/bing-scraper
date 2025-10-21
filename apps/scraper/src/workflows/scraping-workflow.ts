@@ -137,6 +137,17 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			const cvid = crypto.randomUUID().replace(/-/g, '').substring(0, 32).toUpperCase();
 			const queryLength = query.length;
 			
+			// Parameters based on real Bing search URLs:
+			// q = search query
+			// form = QBLH (Bing search form identifier)
+			// sp = -1 (spelling parameter)
+			// ghc = 2 (geographical hint code)
+			// lq = 0 (language query parameter)
+			// pq = previous query (same as current for direct search)
+			// sc = character count range (queryLength-queryLength)
+			// qs = n (query suggestion parameter)
+			// sk = (search key - empty for direct search)
+			// cvid = unique conversation/session identifier
 			return `https://www.bing.com/search?q=${encodedQuery}&form=QBLH&sp=-1&ghc=2&lq=0&pq=${encodedQuery}&sc=${queryLength}-${queryLength}&qs=n&sk=&cvid=${cvid}`;
 		};
 
