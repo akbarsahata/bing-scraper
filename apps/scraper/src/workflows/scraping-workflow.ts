@@ -70,7 +70,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					success: false,
 					totalResults: 0,
 					items: [],
-					searchUrl: `https://www.bing.com/search?q=${encodeURIComponent(queryText)}`,
+					searchUrl: `https://www.bing.com/search?q=${encodeURIComponent(queryText)}&form=QBLH&sp=-1&ghc=2&lq=0&pq=${encodeURIComponent(queryText)}&sc=${queryText.length}-${queryText.length}&qs=n&sk=&cvid=${crypto.randomUUID().replace(/-/g, '').substring(0, 32).toUpperCase()}`,
 					error: error instanceof Error ? error.message : 'Unknown error',
 				};
 			}
@@ -131,7 +131,14 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 	}
 
 	private async scrapeBing(queryText: string, queryId: string, userId: string): Promise<ScrapingResult> {
-		const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(queryText)}`;
+		// Generate realistic Bing search URL with proper parameters
+		const generateBingSearchUrl = (query: string) => {
+			const encodedQuery = encodeURIComponent(query);
+			const cvid = crypto.randomUUID().replace(/-/g, '').substring(0, 32).toUpperCase();
+			const queryLength = query.length;
+			
+			return `https://www.bing.com/search?q=${encodedQuery}&form=QBLH&sp=-1&ghc=2&lq=0&pq=${encodedQuery}&sc=${queryLength}-${queryLength}&qs=n&sk=&cvid=${cvid}`;
+		};
 
 		try {
 			const { default: puppeteer } = await import('@cloudflare/puppeteer');
@@ -191,14 +198,109 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			console.log(`Human delay: ${humanDelay}ms`);
 			await new Promise((resolve) => setTimeout(resolve, humanDelay));
 
-			await page.goto(searchUrl, {
+			// First visit Bing homepage like a real user
+			console.log('Visiting Bing homepage first...');
+			await page.goto('https://www.bing.com/', {
 				waitUntil: 'domcontentloaded',
 				timeout: 30000,
 			});
 
+			// Wait for the page to load completely
+			const homepageDelay = Math.floor(Math.random() * 3000) + 2000;
+			console.log(`Homepage load delay: ${homepageDelay}ms`);
+			await new Promise((resolve) => setTimeout(resolve, homepageDelay));
+
+			// Look for the search input field and type the query
+			try {
+				await page.waitForSelector('#sb_form_q', { timeout: 10000 });
+				
+				// Click on the search box to focus it (human-like behavior)
+				await page.click('#sb_form_q');
+				
+				// Small delay after clicking
+				await new Promise((resolve) => setTimeout(resolve, Math.random() * 500 + 200));
+				
+				// Sometimes clear existing text first (10% chance - simulates correcting previous search)
+				if (Math.random() < 0.1) {
+					await page.keyboard.down('Control');
+					await page.keyboard.press('KeyA');
+					await page.keyboard.up('Control');
+					await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 100));
+				}
+				
+				// Type the query with human-like typing speed
+				await page.type('#sb_form_q', queryText, {
+					delay: Math.random() * 100 + 50, // Random typing speed between 50-150ms per character
+				});
+				
+				// Occasionally make a "typo" and correct it (5% chance)
+				if (Math.random() < 0.05) {
+					console.log('Simulating typo correction...');
+					await new Promise((resolve) => setTimeout(resolve, Math.random() * 500 + 200));
+					
+					// Add an extra character
+					await page.type('#sb_form_q', 'x', { delay: 100 });
+					await new Promise((resolve) => setTimeout(resolve, Math.random() * 800 + 300));
+					
+					// Delete it
+					await page.keyboard.press('Backspace');
+					await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 100));
+				}
+				
+				// Brief pause before submitting (like a human would)
+				const thinkingDelay = Math.floor(Math.random() * 2000) + 500;
+				console.log(`Thinking delay before search: ${thinkingDelay}ms`);
+				await new Promise((resolve) => setTimeout(resolve, thinkingDelay));
+				
+				// Submit the search form
+				await page.keyboard.press('Enter');
+				
+				// Wait for search results to load
+				await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 });
+				console.log(`Successfully searched for: "${queryText}"`);
+				
+			} catch (error) {
+				console.log('Failed to use search box, falling back to direct URL navigation');
+				// Fallback to direct navigation with realistic search URL
+				const fallbackUrl = generateBingSearchUrl(queryText);
+				console.log(`Using fallback URL: ${fallbackUrl}`);
+				await page.goto(fallbackUrl, {
+					waitUntil: 'domcontentloaded',
+					timeout: 30000,
+				});
+			}
+
 			const pageLoadDelay = Math.floor(Math.random() * 4000) + 4000;
 			console.log(`Page load delay: ${pageLoadDelay}ms`);
 			await new Promise((resolve) => setTimeout(resolve, pageLoadDelay));
+
+			// Sometimes scroll down to see more results (30% chance)
+			if (Math.random() < 0.3) {
+				console.log('Simulating page scroll to see more results...');
+				await page.evaluate(() => {
+					// @ts-ignore - Browser DOM available in evaluate context
+					window.scrollTo({
+						// @ts-ignore - Browser DOM available in evaluate context
+						top: window.innerHeight * 0.7,
+						behavior: 'smooth'
+					});
+				});
+				
+				// Wait a bit after scrolling
+				await new Promise((resolve) => setTimeout(resolve, Math.random() * 1500 + 500));
+				
+				// Scroll back up sometimes
+				if (Math.random() < 0.5) {
+					await page.evaluate(() => {
+						// @ts-ignore - Browser DOM available in evaluate context
+						window.scrollTo({
+							top: 0,
+							behavior: 'smooth'
+						});
+					});
+					await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000 + 500));
+				}
+			}
 
 			const updatedCookies = await page.evaluate(() => {
 				// @ts-ignore - Browser DOM available in evaluate context
@@ -243,7 +345,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			try {
 				await page.waitForSelector('#b_results', { timeout: 5000 });
 				
-				// Simulate human reading behavior
+				// Simulate human reading and browsing behavior
 				await page.evaluate(() => {
 					// @ts-ignore - Browser DOM available in evaluate context
 					const results = document.querySelectorAll('#b_results li');
@@ -254,9 +356,34 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					}
 				});
 				
-				// Brief pause as if reading
+				// Simulate some mouse movement over results (human-like cursor behavior)
+				const resultElements = await page.$$('#b_results li.b_algo');
+				if (resultElements.length > 0) {
+					for (let i = 0; i < Math.min(3, resultElements.length); i++) {
+						const element = resultElements[i];
+						try {
+							// Get element bounding box
+							const box = await element.boundingBox();
+							if (box) {
+								// Move mouse to element with slight randomness
+								const x = box.x + box.width * (0.2 + Math.random() * 0.6);
+								const y = box.y + box.height * (0.3 + Math.random() * 0.4);
+								await page.mouse.move(x, y, { steps: Math.floor(Math.random() * 5) + 3 });
+								
+								// Small pause as if reading
+								await new Promise(resolve => setTimeout(resolve, Math.random() * 800 + 200));
+							}
+						} catch (e) {
+							// Continue if mouse movement fails
+						}
+					}
+				}
+				
+				// Brief pause as if reading the results
 				const readingDelay = Math.floor(Math.random() * 2000) + 1000;
 				await new Promise((resolve) => setTimeout(resolve, readingDelay));
+				
+				console.log('Completed human-like browsing simulation');
 			} catch (error) {
 				console.log('Search results container not found, continuing anyway');
 			}
@@ -439,7 +566,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 				totalResults: scrapedData.results.length,
 				items: scrapedData.results,
 				pageTitle: scrapedData.pageTitle,
-				searchUrl,
+				searchUrl: generateBingSearchUrl(queryText),
 				screenshotKey,
 				htmlKey,
 			};
@@ -451,7 +578,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 				totalResults: 0,
 				items: [],
 				pageTitle: 'Bing Search - Error',
-				searchUrl,
+				searchUrl: generateBingSearchUrl(queryText),
 				error: error instanceof Error ? error.message : 'Unknown error occurred during scraping',
 			};
 		}
