@@ -90,18 +90,18 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					{
 						id: resultId,
 						taskId: task.id,
-					queryId,
-					userId,
-					queryText,
-					totalResults: scrapingResult.totalResults,
-					pageTitle: scrapingResult.pageTitle,
-					searchUrl: scrapingResult.searchUrl,
-					r2ScreenshotKey: scrapingResult.screenshotKey || null,
-					r2HtmlKey: scrapingResult.htmlKey || null,
-					scrapedAt: new Date(),
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				},
+						queryId,
+						userId,
+						queryText,
+						totalResults: scrapingResult.totalResults,
+						pageTitle: scrapingResult.pageTitle,
+						searchUrl: scrapingResult.searchUrl,
+						r2ScreenshotKey: scrapingResult.screenshotKey || null,
+						r2HtmlKey: scrapingResult.htmlKey || null,
+						scrapedAt: new Date(),
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					},
 					scrapingResult.items.map((item, index) => ({
 						id: `item_${crypto.randomUUID()}`,
 						searchResultId: resultId,
@@ -146,33 +146,26 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
 			const page = await browser.newPage();
 
-		// Set viewport for consistent rendering
-		await page.setViewport({ width: 1920, height: 1080 });
+			// Set viewport for consistent rendering
+			await page.setViewport({ width: 1920, height: 1080 });
 
-		// Navigate to Bing search with timeout
-		// Wait for networkidle0 to ensure all network requests complete (including AJAX)
-		await page.goto(searchUrl, {
-			waitUntil: 'networkidle0',
-			timeout: 30000,
-		});
+			// Navigate to Bing search with timeout
+			await page.goto(searchUrl, {
+				waitUntil: 'domcontentloaded',
+				timeout: 30000,
+			});
 
-		// Wait for search results container
-		await page.waitForSelector('#b_results', { timeout: 10000 });
+			// Wait a reasonable time for initial content to load
+			await new Promise(resolve => setTimeout(resolve, 3000));
 
-		// Additional wait to ensure client-side rendering completes
-		// This allows time for JavaScript frameworks to render dynamic content
-		// @ts-ignore - Browser DOM available in evaluate context
-		await page.waitForFunction(
-			() => {
-				// @ts-ignore - Browser DOM available in evaluate context
-				const results = document.querySelectorAll('#b_results > li.b_algo');
-				return results.length > 0;
-			},
-			{ timeout: 10000 }
-		);
+			// Try to wait for search results, but don't fail if not found
+			try {
+				await page.waitForSelector('#b_results', { timeout: 5000 });
+			} catch (error) {
+				console.log('Search results container not found, continuing anyway');
+			}
 
-		// Extra delay for any lazy-loaded content
-		await new Promise(resolve => setTimeout(resolve, 2000));			// Take screenshot and save to R2
+			// Take screenshot and save to R2
 			const screenshot = await page.screenshot({
 				fullPage: true,
 				type: 'png',
@@ -224,78 +217,104 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					isAd: boolean;
 				}> = [];
 
-				// Get organic search results
-				// @ts-ignore - Browser DOM available in evaluate context
-				const organicResults = document.querySelectorAll('#b_results > li.b_algo');
-				organicResults.forEach((result: any, index: number) => {
-					const titleElement = result.querySelector('h2 a') as HTMLAnchorElement;
-					const snippetElement = result.querySelector('.b_caption p, .b_algoSlug');
-					const citeElement = result.querySelector('cite');
-
-					if (titleElement && (titleElement as any).href) {
-						const url = (titleElement as any).href;
-						const title = (titleElement as any).textContent?.trim() || '';
-						const snippet = snippetElement?.textContent?.trim() || '';
-						const displayUrl = citeElement?.textContent?.trim() || '';
-
-						let domain = '';
-						try {
-							domain = new URL(url).hostname;
-						} catch (e) {
-							// Invalid URL
-						}
-
-						results.push({
-							position: index + 1,
-							title,
-							url,
-							displayUrl,
-							snippet,
-							type: 'organic',
-							domain,
-							isAd: false,
-						});
+				try {
+					// Get organic search results - try multiple selectors
+					// @ts-ignore - Browser DOM available in evaluate context
+					let organicResults = document.querySelectorAll('#b_results > li.b_algo');
+					
+					// If no results found, try alternative selectors
+					if (organicResults.length === 0) {
+						// @ts-ignore - Browser DOM available in evaluate context
+						organicResults = document.querySelectorAll('.b_algo, [data-tag="organic"]');
 					}
-				});
 
-				// Get sponsored/ad results
-				// @ts-ignore - Browser DOM available in evaluate context
-				const adResults = document.querySelectorAll('#b_results > li.b_ad, #b_results li[data-ad]');
-				adResults.forEach((result: any) => {
-					const titleElement = result.querySelector('h2 a, .b_adlabel + div a') as HTMLAnchorElement;
-					const snippetElement = result.querySelector('.b_caption p, .b_adSlug');
-					const citeElement = result.querySelector('cite');
-
-					if (titleElement && (titleElement as any).href) {
-						const url = (titleElement as any).href;
-						const title = (titleElement as any).textContent?.trim() || '';
-						const snippet = snippetElement?.textContent?.trim() || '';
-						const displayUrl = citeElement?.textContent?.trim() || '';
-
-						let domain = '';
+					organicResults.forEach((result: any, index: number) => {
 						try {
-							domain = new URL(url).hostname;
-						} catch (e) {
-							// Invalid URL
-						}
+							const titleElement = result.querySelector('h2 a, h3 a, .b_title a') as HTMLAnchorElement;
+							const snippetElement = result.querySelector('.b_caption p, .b_algoSlug, .b_snippetText');
+							const citeElement = result.querySelector('cite, .b_attribution cite');
 
-						results.push({
-							position: results.length + 1,
-							title,
-							url,
-							displayUrl,
-							snippet,
-							type: 'ad',
-							domain,
-							isAd: true,
-						});
+							if (titleElement && (titleElement as any).href) {
+								const url = (titleElement as any).href;
+								const title = (titleElement as any).textContent?.trim() || '';
+								const snippet = snippetElement?.textContent?.trim() || '';
+								const displayUrl = citeElement?.textContent?.trim() || '';
+
+								let domain = '';
+								try {
+									domain = new URL(url).hostname;
+								} catch (e) {
+									// Invalid URL
+								}
+
+								results.push({
+									position: index + 1,
+									title,
+									url,
+									displayUrl,
+									snippet,
+									type: 'organic',
+									domain,
+									isAd: false,
+								});
+							}
+						} catch (e) {
+							console.log('Error processing organic result:', e);
+						}
+					});
+
+					// Get sponsored/ad results
+					// @ts-ignore - Browser DOM available in evaluate context
+					let adResults = document.querySelectorAll('#b_results > li.b_ad, #b_results li[data-ad]');
+					
+					// Try alternative ad selectors
+					if (adResults.length === 0) {
+						// @ts-ignore - Browser DOM available in evaluate context
+						adResults = document.querySelectorAll('.b_ad, [data-tag="ad"], .sb_add');
 					}
-				});
+
+					adResults.forEach((result: any) => {
+						try {
+							const titleElement = result.querySelector('h2 a, .b_adlabel + div a, h3 a') as HTMLAnchorElement;
+							const snippetElement = result.querySelector('.b_caption p, .b_adSlug, .b_snippetText');
+							const citeElement = result.querySelector('cite, .b_attribution cite');
+
+							if (titleElement && (titleElement as any).href) {
+								const url = (titleElement as any).href;
+								const title = (titleElement as any).textContent?.trim() || '';
+								const snippet = snippetElement?.textContent?.trim() || '';
+								const displayUrl = citeElement?.textContent?.trim() || '';
+
+								let domain = '';
+								try {
+									domain = new URL(url).hostname;
+								} catch (e) {
+									// Invalid URL
+								}
+
+								results.push({
+									position: results.length + 1,
+									title,
+									url,
+									displayUrl,
+									snippet,
+									type: 'ad',
+									domain,
+									isAd: true,
+								});
+							}
+						} catch (e) {
+							console.log('Error processing ad result:', e);
+						}
+					});
+				} catch (e) {
+					console.log('Error during data extraction:', e);
+				}
 
 				return {
 					results,
 					// @ts-ignore - Browser DOM available in evaluate context
-					pageTitle: document.title,
+					pageTitle: document.title || 'Bing Search',
 				};
 			});
 
