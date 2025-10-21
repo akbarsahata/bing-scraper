@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useLogout } from "@/hooks";
 
 interface PageHeaderProps {
@@ -15,9 +16,33 @@ export function PageHeader({
 
   return (
     <div className="flex justify-between items-start mb-6">
-      <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+      <div className="flex items-center gap-6">
+        <div>
+          <Link to="/app" className="hover:text-blue-600 transition-colors">
+            <h1 className="text-2xl font-bold">{title}</h1>
+          </Link>
+          {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+        </div>
+        <nav className="flex items-center gap-4 mt-1">
+          <Link
+            to="/app"
+            className="text-sm text-gray-700 hover:text-blue-600 transition-colors"
+            activeProps={{
+              className: "text-blue-600 font-medium"
+            }}
+          >
+            Dashboard
+          </Link>
+          <Link
+            to="/app/tasks"
+            className="text-sm text-gray-700 hover:text-blue-600 transition-colors"
+            activeProps={{
+              className: "text-blue-600 font-medium"
+            }}
+          >
+            Tasks
+          </Link>
+        </nav>
       </div>
       {showLogout && (
         <button
