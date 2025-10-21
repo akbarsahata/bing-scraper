@@ -11,6 +11,7 @@ declare namespace Cloudflare {
 		STORAGE: R2Bucket;
 		DATABASE: D1Database;
 		QUEUE: Queue;
+		SESSIONS: KVNamespace;
 		ASSETS: Fetcher;
 	}
 }

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { trpc, trpcReact } from "@/utils/trpc-types";
+import { SessionCapture } from "@/components/SessionCapture";
 
 export const Route = createFileRoute("/app/_authed/")({
   component: RouteComponent,
@@ -111,6 +112,7 @@ function RouteComponent() {
 
   return (
     <div className="min-h-screen w-full bg-gray-50 p-8">
+      <SessionCapture />
       <div className="max-w-6xl mx-auto">
         <div className="bg-white border-2 border-black p-8">
           <div className="text-center mb-8">

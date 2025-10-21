@@ -26,6 +26,13 @@
 			"remote": true
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSIONS",
+			"id": "5d52fdcacbed45e69d9ac64a0a40dd4b",
+			"preview_id": "5d52fdcacbed45e69d9ac64a0a40dd4b"
+		}
+	],
 	"queues": {
 		"consumers": [
 			{

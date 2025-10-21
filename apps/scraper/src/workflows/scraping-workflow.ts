@@ -4,6 +4,7 @@ import { searchQueriesRepo } from '@repo/data/repos/search-queries.repo';
 import { searchResultsRepo } from '@repo/data/repos/search-results.repo';
 import type { ScrapingQueueMessage } from '@repo/data/zod-schema/queue';
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
+import { SessionManager } from '../session-manager';
 
 interface ScrapingResult {
 	success: boolean;
@@ -134,40 +135,79 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 		try {
 			const { default: puppeteer } = await import('@cloudflare/puppeteer');
+			const sessionManager = new SessionManager(this.env.SESSIONS);
 
 			const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
 			const page = await browser.newPage();
 
-			await page.setViewport({ width: 1920, height: 1080 });
+			let session = await sessionManager.getRandomSession();
+			if (!session) {
+				console.log('No stored sessions available, generating fallback session');
+				session = sessionManager.generateFallbackSession();
+			} else {
+				console.log(`Using stored session: ${session.sessionId} (created: ${new Date(session.createdAt).toISOString()})`);
+			}
 
-			const userAgents = [
-				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
-			];
-			const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-			await page.setUserAgent(randomUserAgent);
+			await page.setViewport(session.viewport);
+			await page.setUserAgent(session.userAgent);
 
-			await page.setExtraHTTPHeaders({
+			const headers: Record<string, string> = {
 				Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-				'Accept-Language': 'en-US,en;q=0.9',
+				'Accept-Language': session.language + ',en;q=0.9',
 				'Accept-Encoding': 'gzip, deflate, br',
 				DNT: '1',
 				Connection: 'keep-alive',
 				'Upgrade-Insecure-Requests': '1',
-			});
+			};
 
-			const randomDelay = Math.floor(Math.random() * 2000) + 1000;
-			await new Promise((resolve) => setTimeout(resolve, randomDelay));
+			if (session.cookies) {
+				headers['Cookie'] = session.cookies;
+			}
+
+			await page.setExtraHTTPHeaders(headers);
+
+			// Simulate human browsing patterns
+			if (Math.random() > 0.7) {
+				console.log('Simulating pre-search browsing...');
+				
+				// Sometimes visit Bing homepage first
+				await page.goto('https://www.bing.com/', {
+					waitUntil: 'domcontentloaded',
+					timeout: 15000,
+				});
+				
+				// Random scroll and interaction
+				await page.evaluate(() => {
+					// @ts-ignore - Browser DOM available in evaluate context
+					window.scrollTo(0, Math.random() * 500);
+				});
+				
+				// Short delay as if user is looking around
+				const browsingDelay = Math.floor(Math.random() * 3000) + 1000;
+				await new Promise((resolve) => setTimeout(resolve, browsingDelay));
+			}
+
+			const humanDelay = Math.floor(Math.random() * 3000) + 2000;
+			console.log(`Human delay: ${humanDelay}ms`);
+			await new Promise((resolve) => setTimeout(resolve, humanDelay));
 
 			await page.goto(searchUrl, {
 				waitUntil: 'domcontentloaded',
 				timeout: 30000,
 			});
 
-			const loadDelay = Math.floor(Math.random() * 2000) + 3000;
-			await new Promise((resolve) => setTimeout(resolve, loadDelay));
+			const pageLoadDelay = Math.floor(Math.random() * 4000) + 4000;
+			console.log(`Page load delay: ${pageLoadDelay}ms`);
+			await new Promise((resolve) => setTimeout(resolve, pageLoadDelay));
+
+			const updatedCookies = await page.evaluate(() => {
+				// @ts-ignore - Browser DOM available in evaluate context
+				return document.cookie;
+			});
+			if (updatedCookies && session.sessionId.startsWith('session_')) {
+				console.log('Updating session cookies with fresh data');
+				await sessionManager.updateSessionCookies(session.sessionId, updatedCookies);
+			}
 
 			const isCaptcha = await page.evaluate(() => {
 				// @ts-ignore - Browser DOM available in evaluate context
@@ -202,6 +242,21 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 			try {
 				await page.waitForSelector('#b_results', { timeout: 5000 });
+				
+				// Simulate human reading behavior
+				await page.evaluate(() => {
+					// @ts-ignore - Browser DOM available in evaluate context
+					const results = document.querySelectorAll('#b_results li');
+					if (results.length > 0) {
+						// @ts-ignore - Browser DOM available in evaluate context
+						const randomResult = results[Math.floor(Math.random() * Math.min(3, results.length))];
+						randomResult.scrollIntoView({ behavior: 'smooth' });
+					}
+				});
+				
+				// Brief pause as if reading
+				const readingDelay = Math.floor(Math.random() * 2000) + 1000;
+				await new Promise((resolve) => setTimeout(resolve, readingDelay));
 			} catch (error) {
 				console.log('Search results container not found, continuing anyway');
 			}
@@ -222,6 +277,10 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					queryId,
 					queryText,
 					uploadedAt: new Date().toISOString(),
+					sessionId: session.sessionId,
+					userAgent: session.userAgent,
+					viewport: JSON.stringify(session.viewport),
+					renderMethod: 'browser-session-aware',
 				},
 			});
 
@@ -236,6 +295,15 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					queryId,
 					queryText,
 					uploadedAt: new Date().toISOString(),
+					sessionId: session.sessionId,
+					userAgent: session.userAgent,
+					viewport: JSON.stringify(session.viewport),
+					timezone: session.timezone,
+					language: session.language,
+					platform: session.platform,
+					fingerprint: JSON.stringify(session.fingerprint),
+					renderMethod: 'browser-session-aware',
+					hasCookies: (session.cookies.length > 0).toString(),
 				},
 			});
 
