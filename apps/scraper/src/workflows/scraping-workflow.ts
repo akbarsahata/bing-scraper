@@ -399,29 +399,28 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			// Close browser
 			await browser.close();
 
-			// Handle CAPTCHA case - fallback to HTTP scraping
-			if (scrapedData.isCaptcha) {
-				console.log('CAPTCHA encountered, trying fallback HTTP scraping method...');
-
-				try {
-					const fallbackResult = await this.scrapeBingWithFetch(queryText, queryId, userId);
-					console.log('Fallback HTTP scraping successful');
-					return fallbackResult;
-				} catch (fallbackError) {
-					console.log('Fallback HTTP scraping also failed:', fallbackError);
-					return {
-						success: false,
-						totalResults: 0,
-						items: [],
-						pageTitle: scrapedData.pageTitle,
-						searchUrl,
-						screenshotKey,
-						htmlKey,
-						error: 'CAPTCHA challenge encountered and fallback HTTP scraping failed - please try again later',
-					};
-				}
+		// Handle CAPTCHA case - fallback to HTTP scraping
+		if (scrapedData.isCaptcha) {
+			console.log('CAPTCHA encountered, trying fallback HTTP scraping method...');
+			
+			try {
+				const fallbackResult = await this.scrapeBingWithFetch(queryText, queryId, userId);
+				console.log('Fallback HTTP scraping successful');
+				return fallbackResult;
+			} catch (fallbackError) {
+				console.log('Fallback HTTP scraping also failed:', fallbackError);
+				return {
+					success: false,
+					totalResults: 0,
+					items: [],
+					pageTitle: scrapedData.pageTitle,
+					searchUrl,
+					screenshotKey,
+					htmlKey,
+					error: 'CAPTCHA challenge encountered and fallback HTTP scraping failed - please try again later',
+				};
 			}
-			return {
+		}			return {
 				success: true,
 				totalResults: scrapedData.results.length,
 				items: scrapedData.results,
@@ -464,15 +463,13 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 		try {
 			// Enhanced regex-based parser with multiple patterns for better coverage
-
+			
 			// Pattern 1: Standard Bing organic results
-			const organicPattern1 =
-				/<li class="b_algo"[\s\S]*?<h2[^>]*><a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>)?[\s\S]*?<\/li>/gi;
-
+			const organicPattern1 = /<li class="b_algo"[\s\S]*?<h2[^>]*><a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>)?[\s\S]*?<\/li>/gi;
+			
 			// Pattern 2: Alternative Bing structure
-			const organicPattern2 =
-				/<div[^>]*class="[^"]*b_algoheader[^"]*"[\s\S]*?<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<div[^>]*class="[^"]*b_caption[^"]*"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>)?/gi;
-
+			const organicPattern2 = /<div[^>]*class="[^"]*b_algoheader[^"]*"[\s\S]*?<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<div[^>]*class="[^"]*b_caption[^"]*"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>)?/gi;
+			
 			// Pattern 3: Simplified fallback
 			const organicPattern3 = /<a[^>]+href="(https?:\/\/[^"]*)"[^>]*[^>]*class="[^"]*"[^>]*>(.*?)<\/a>/gi;
 
@@ -487,7 +484,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 				if (url && title && this.isValidSearchResult(url)) {
 					const domain = this.extractDomain(url);
-
+					
 					items.push({
 						position: position++,
 						title,
@@ -511,7 +508,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 					if (url && title && this.isValidSearchResult(url) && !this.isDuplicateResult(items, url)) {
 						const domain = this.extractDomain(url);
-
+						
 						items.push({
 							position: position++,
 							title,
@@ -535,7 +532,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 					if (url && title && this.isValidSearchResult(url) && !this.isDuplicateResult(items, url)) {
 						const domain = this.extractDomain(url);
-
+						
 						items.push({
 							position: position++,
 							title,
@@ -549,6 +546,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					}
 				}
 			}
+
 		} catch (error) {
 			console.error('Error parsing search results:', error);
 		}
@@ -569,10 +567,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 	private cleanText(text: string): string {
 		if (!text) return '';
-		return text
-			.replace(/<[^>]*>/g, '')
-			.replace(/\s+/g, ' ')
-			.trim();
+		return text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 	}
 
 	private extractDomain(url: string): string {
@@ -586,12 +581,18 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 	private isValidSearchResult(url: string): boolean {
 		if (!url) return false;
 		// Filter out Bing internal URLs and invalid results
-		const invalidPatterns = ['bing.com', 'microsoft.com/bing', 'javascript:', '#', 'mailto:'];
-		return !invalidPatterns.some((pattern) => url.includes(pattern));
+		const invalidPatterns = [
+			'bing.com',
+			'microsoft.com/bing',
+			'javascript:',
+			'#',
+			'mailto:',
+		];
+		return !invalidPatterns.some(pattern => url.includes(pattern));
 	}
 
-	private isDuplicateResult(items: Array<{ url: string }>, newUrl: string): boolean {
-		return items.some((item) => item.url === newUrl);
+	private isDuplicateResult(items: Array<{url: string}>, newUrl: string): boolean {
+		return items.some(item => item.url === newUrl);
 	}
 
 	private async scrapeBingWithFetch(queryText: string, queryId: string, userId: string): Promise<ScrapingResult> {
@@ -603,23 +604,23 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
 			];
 			const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
 
 			// Add random delay to avoid being too fast
 			const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3 seconds
-			await new Promise((resolve) => setTimeout(resolve, delay));
+			await new Promise(resolve => setTimeout(resolve, delay));
 
 			const response = await fetch(searchUrl, {
 				method: 'GET',
 				headers: {
 					'User-Agent': randomUserAgent,
-					Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
 					'Accept-Language': 'en-US,en;q=0.9',
 					'Accept-Encoding': 'gzip, deflate, br',
-					DNT: '1',
-					Connection: 'keep-alive',
+					'DNT': '1',
+					'Connection': 'keep-alive',
 					'Upgrade-Insecure-Requests': '1',
 					'Sec-Fetch-Dest': 'document',
 					'Sec-Fetch-Mode': 'navigate',
@@ -669,6 +670,7 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 				// No screenshot for HTTP method
 				screenshotKey: undefined,
 			};
+
 		} catch (error) {
 			console.error('HTTP scraping failed:', error);
 			throw error;
