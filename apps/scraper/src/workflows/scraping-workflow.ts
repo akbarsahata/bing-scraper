@@ -81,38 +81,87 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 			if (scrapingResult.success) {
 				const resultId = `result_${crypto.randomUUID()}`;
-				await searchResultsRepo.create(
-					db,
-					{
-						id: resultId,
-						taskId: task.id,
-						queryId,
-						userId,
-						queryText,
-						totalResults: scrapingResult.totalResults,
-						pageTitle: scrapingResult.pageTitle,
-						searchUrl: scrapingResult.searchUrl,
-						r2ScreenshotKey: scrapingResult.screenshotKey || null,
-						r2HtmlKey: scrapingResult.htmlKey || null,
-						scrapedAt: new Date(),
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					},
-					scrapingResult.items.map((item, index) => ({
-						id: `item_${crypto.randomUUID()}`,
-						searchResultId: resultId,
-						queryId,
-						position: item.position || index + 1,
-						title: item.title,
-						url: item.url,
-						displayUrl: item.displayUrl || null,
-						snippet: item.snippet || null,
-						type: (item.type === 'image' ? 'organic' : item.type) as 'organic' | 'ad' | 'news' | 'video' | 'featured',
-						domain: item.domain || null,
-						isAd: item.isAd,
-						createdAt: new Date(),
-					}))
-				);
+				const now = new Date();
+				
+				console.log('Creating search result with data:', {
+					resultId,
+					taskId: task.id,
+					queryId,
+					userId,
+					queryText,
+					totalResults: scrapingResult.totalResults,
+					pageTitle: scrapingResult.pageTitle,
+					scrapedAt: now.toISOString(),
+					screenshotKey: scrapingResult.screenshotKey,
+					htmlKey: scrapingResult.htmlKey,
+				});
+				
+				try {
+					await searchResultsRepo.create(
+						db,
+						{
+							id: resultId,
+							taskId: task.id,
+							queryId,
+							userId,
+							queryText,
+							totalResults: scrapingResult.totalResults,
+							pageTitle: scrapingResult.pageTitle,
+							searchUrl: scrapingResult.searchUrl,
+							r2ScreenshotKey: scrapingResult.screenshotKey || null,
+							r2HtmlKey: scrapingResult.htmlKey || null,
+							scrapedAt: now,
+							createdAt: now,
+							updatedAt: now,
+						},
+						scrapingResult.items.map((item, index) => ({
+							id: `item_${crypto.randomUUID()}`,
+							searchResultId: resultId,
+							queryId,
+							position: item.position || index + 1,
+							title: item.title,
+							url: item.url,
+							displayUrl: item.displayUrl || null,
+							snippet: item.snippet || null,
+							type: (item.type === 'image' ? 'organic' : item.type) as 'organic' | 'ad' | 'news' | 'video' | 'featured',
+							domain: item.domain || null,
+							isAd: item.isAd,
+							createdAt: now, // Use same Date object
+						}))
+					);
+					console.log('Successfully inserted search result and items');
+				} catch (dbError) {
+					console.error('Database insert failed:', dbError);
+					console.error('Failed data structure:', {
+						searchResult: {
+							id: resultId,
+							taskId: task.id,
+							queryId,
+							userId,
+							queryText,
+							totalResults: scrapingResult.totalResults,
+							pageTitle: scrapingResult.pageTitle,
+							searchUrl: scrapingResult.searchUrl,
+							r2ScreenshotKey: scrapingResult.screenshotKey || null,
+							r2HtmlKey: scrapingResult.htmlKey || null,
+							scrapedAt: now.toISOString(),
+							createdAt: now.toISOString(),
+							updatedAt: now.toISOString(),
+						},
+						itemsCount: scrapingResult.items.length,
+						sampleItem: scrapingResult.items[0] ? {
+							id: 'item_sample',
+							searchResultId: resultId,
+							queryId,
+							position: scrapingResult.items[0].position || 1,
+							title: scrapingResult.items[0].title,
+							url: scrapingResult.items[0].url,
+							type: scrapingResult.items[0].type,
+							createdAt: now.toISOString(),
+						} : null
+					});
+					throw dbError;
+				}
 
 				await scrapingTasksRepo.markAsCompleted(db, task.id, duration);
 				await searchQueriesRepo.updateStatus(db, queryId, 'completed');

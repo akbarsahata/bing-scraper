@@ -30,7 +30,7 @@ export const searchResultsRepo = {
         items.map((item) => ({
           ...item,
           searchResultId: result.id,
-          createdAt: now,
+          createdAt: item.createdAt || now,
         }))
       );
     }
