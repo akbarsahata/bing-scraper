@@ -399,21 +399,28 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			// Close browser
 			await browser.close();
 
-			// Handle CAPTCHA case
+			// Handle CAPTCHA case - fallback to HTTP scraping
 			if (scrapedData.isCaptcha) {
-				console.log('CAPTCHA encountered, returning partial results');
-				return {
-					success: false,
-					totalResults: 0,
-					items: [],
-					pageTitle: scrapedData.pageTitle,
-					searchUrl,
-					screenshotKey,
-					htmlKey,
-					error: 'CAPTCHA challenge encountered - please try again later or use different query patterns',
-				};
-			}
+				console.log('CAPTCHA encountered, trying fallback HTTP scraping method...');
 
+				try {
+					const fallbackResult = await this.scrapeBingWithFetch(queryText, queryId, userId);
+					console.log('Fallback HTTP scraping successful');
+					return fallbackResult;
+				} catch (fallbackError) {
+					console.log('Fallback HTTP scraping also failed:', fallbackError);
+					return {
+						success: false,
+						totalResults: 0,
+						items: [],
+						pageTitle: scrapedData.pageTitle,
+						searchUrl,
+						screenshotKey,
+						htmlKey,
+						error: 'CAPTCHA challenge encountered and fallback HTTP scraping failed - please try again later',
+					};
+				}
+			}
 			return {
 				success: true,
 				totalResults: scrapedData.results.length,
@@ -455,39 +462,216 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			isAd: boolean;
 		}> = [];
 
-		// This is a simplified regex-based parser
-		// In production, use proper HTML parsing with Browser Rendering
+		try {
+			// Enhanced regex-based parser with multiple patterns for better coverage
 
-		// Extract organic search results
-		// Pattern matches typical Bing organic result structure
-		const organicPattern = /<li class="b_algo"[\s\S]*?<h2><a href="(.*?)"[\s\S]*?>(.*?)<\/a>[\s\S]*?<\/li>/gi;
-		let match;
-		let position = 1;
+			// Pattern 1: Standard Bing organic results
+			const organicPattern1 =
+				/<li class="b_algo"[\s\S]*?<h2[^>]*><a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>)?[\s\S]*?<\/li>/gi;
 
-		while ((match = organicPattern.exec(html)) !== null) {
-			const url = match[1];
-			const title = match[2].replace(/<[^>]*>/g, '').trim();
+			// Pattern 2: Alternative Bing structure
+			const organicPattern2 =
+				/<div[^>]*class="[^"]*b_algoheader[^"]*"[\s\S]*?<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<div[^>]*class="[^"]*b_caption[^"]*"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>)?/gi;
 
-			let domain = '';
-			try {
-				domain = new URL(url).hostname;
-			} catch (e) {
-				// Invalid URL
+			// Pattern 3: Simplified fallback
+			const organicPattern3 = /<a[^>]+href="(https?:\/\/[^"]*)"[^>]*[^>]*class="[^"]*"[^>]*>(.*?)<\/a>/gi;
+
+			let position = 1;
+
+			// Try pattern 1
+			let match;
+			while ((match = organicPattern1.exec(html)) !== null && items.length < 15) {
+				const url = this.cleanUrl(match[1]);
+				const title = this.cleanText(match[2]);
+				const snippet = match[3] ? this.cleanText(match[3]) : '';
+
+				if (url && title && this.isValidSearchResult(url)) {
+					const domain = this.extractDomain(url);
+
+					items.push({
+						position: position++,
+						title,
+						url,
+						displayUrl: domain,
+						snippet,
+						type: 'organic',
+						domain,
+						isAd: false,
+					});
+				}
 			}
 
-			items.push({
-				position: position++,
-				title,
-				url,
-				type: 'organic',
-				domain,
-				isAd: false,
-			});
+			// Try pattern 2 if we didn't get many results
+			if (items.length < 5) {
+				organicPattern2.lastIndex = 0; // Reset regex
+				while ((match = organicPattern2.exec(html)) !== null && items.length < 15) {
+					const url = this.cleanUrl(match[1]);
+					const title = this.cleanText(match[2]);
+					const snippet = match[3] ? this.cleanText(match[3]) : '';
 
-			// Limit to first 10 results
-			if (items.length >= 10) break;
+					if (url && title && this.isValidSearchResult(url) && !this.isDuplicateResult(items, url)) {
+						const domain = this.extractDomain(url);
+
+						items.push({
+							position: position++,
+							title,
+							url,
+							displayUrl: domain,
+							snippet,
+							type: 'organic',
+							domain,
+							isAd: false,
+						});
+					}
+				}
+			}
+
+			// Try simplified pattern as last resort
+			if (items.length < 3) {
+				organicPattern3.lastIndex = 0; // Reset regex
+				while ((match = organicPattern3.exec(html)) !== null && items.length < 10) {
+					const url = this.cleanUrl(match[1]);
+					const title = this.cleanText(match[2]);
+
+					if (url && title && this.isValidSearchResult(url) && !this.isDuplicateResult(items, url)) {
+						const domain = this.extractDomain(url);
+
+						items.push({
+							position: position++,
+							title,
+							url,
+							displayUrl: domain,
+							snippet: '',
+							type: 'organic',
+							domain,
+							isAd: false,
+						});
+					}
+				}
+			}
+		} catch (error) {
+			console.error('Error parsing search results:', error);
 		}
 
 		return items;
+	}
+
+	private cleanUrl(url: string): string {
+		if (!url) return '';
+		// Remove Bing redirect wrappers and decode URL
+		const cleaned = url.replace(/^.*?&u=a1aHR0cHM6Ly8/, 'https://').replace(/&[^&]*$/, '');
+		try {
+			return decodeURIComponent(cleaned);
+		} catch (e) {
+			return cleaned;
+		}
+	}
+
+	private cleanText(text: string): string {
+		if (!text) return '';
+		return text
+			.replace(/<[^>]*>/g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	private extractDomain(url: string): string {
+		try {
+			return new URL(url).hostname;
+		} catch (e) {
+			return '';
+		}
+	}
+
+	private isValidSearchResult(url: string): boolean {
+		if (!url) return false;
+		// Filter out Bing internal URLs and invalid results
+		const invalidPatterns = ['bing.com', 'microsoft.com/bing', 'javascript:', '#', 'mailto:'];
+		return !invalidPatterns.some((pattern) => url.includes(pattern));
+	}
+
+	private isDuplicateResult(items: Array<{ url: string }>, newUrl: string): boolean {
+		return items.some((item) => item.url === newUrl);
+	}
+
+	private async scrapeBingWithFetch(queryText: string, queryId: string, userId: string): Promise<ScrapingResult> {
+		const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(queryText)}`;
+
+		try {
+			// Use fetch with realistic headers to avoid detection
+			const userAgents = [
+				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+			];
+			const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+			// Add random delay to avoid being too fast
+			const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3 seconds
+			await new Promise((resolve) => setTimeout(resolve, delay));
+
+			const response = await fetch(searchUrl, {
+				method: 'GET',
+				headers: {
+					'User-Agent': randomUserAgent,
+					Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+					'Accept-Language': 'en-US,en;q=0.9',
+					'Accept-Encoding': 'gzip, deflate, br',
+					DNT: '1',
+					Connection: 'keep-alive',
+					'Upgrade-Insecure-Requests': '1',
+					'Sec-Fetch-Dest': 'document',
+					'Sec-Fetch-Mode': 'navigate',
+					'Sec-Fetch-Site': 'none',
+					'Cache-Control': 'max-age=0',
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			const html = await response.text();
+
+			// Check if we still got a CAPTCHA page
+			if (html.includes('One last step') || html.includes('Verify you are human')) {
+				throw new Error('CAPTCHA page returned even with HTTP method');
+			}
+
+			// Save HTML content to R2
+			const timestamp = Date.now();
+			const htmlKey = `html/${userId}/${queryId}_${timestamp}.html`;
+			await this.env.STORAGE.put(htmlKey, html, {
+				httpMetadata: {
+					contentType: 'text/html',
+				},
+				customMetadata: {
+					userId,
+					queryId,
+					queryText,
+					uploadedAt: new Date().toISOString(),
+					method: 'fetch-fallback',
+				},
+			});
+
+			// Parse HTML using regex-based approach (since we don't have browser DOM)
+			const results = this.parseSearchResults(html);
+			const pageTitle = this.extractTitle(html);
+
+			return {
+				success: true,
+				totalResults: results.length,
+				items: results,
+				pageTitle,
+				searchUrl,
+				htmlKey,
+				// No screenshot for HTTP method
+				screenshotKey: undefined,
+			};
+		} catch (error) {
+			console.error('HTTP scraping failed:', error);
+			throw error;
+		}
 	}
 }
