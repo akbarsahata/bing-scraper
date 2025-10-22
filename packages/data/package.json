@@ -9,7 +9,11 @@
     "migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "generate": "drizzle-kit generate --config drizzle.config.ts",
     "studio": "drizzle-kit studio --config drizzle.config.ts",
-    "better-auth-generate": "npx @better-auth/cli generate --config src/auth.ts --output=src/schemas/better-auth.ts"
+    "better-auth-generate": "npx @better-auth/cli generate --config src/auth.ts --output=src/schemas/better-auth.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage"
   },
   "exports": {
     "./database": {
@@ -53,9 +57,11 @@
     "@cloudflare/workers-types": "^4.20250405.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.18.10",
+    "@vitest/coverage-v8": "^2.1.9",
     "drizzle-kit": "^0.31.1",
     "nodemon": "^3.1.10",
     "tsc-alias": "^1.8.16",
+    "vitest": "^2.1.9",
     "wrangler": "^4.22.0"
   }
 }
