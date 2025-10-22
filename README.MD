@@ -141,10 +141,6 @@ bing-scraper/
 │       ├── vitest.config.ts          # Vitest configuration
 │       ├── tsconfig.json
 │       └── package.json
-├── docs/                             # Documentation
-│   ├── AUTH_IMPLEMENTATION.md        # Auth system details
-│   ├── AUTH_QUICK_REFERENCE.md       # Quick auth guide
-│   └── SCRAPING_IMPLEMENTATION.md    # Scraping system details
 ├── pnpm-workspace.yaml               # pnpm workspace configuration
 ├── package.json                      # Root package.json
 ├── REQUIREMENTS.MD                   # Detailed requirements
@@ -384,19 +380,32 @@ pnpm run test:e2e:debug
 
 The web app includes end-to-end tests covering critical user flows:
 
-- **auth.spec.ts** - Authentication flows (sign-in, sign-up, navigation)
-- **landing.spec.ts** - Landing page and redirects
-- **navigation.spec.ts** - Page navigation and routing
-- **accessibility.spec.ts** - Form accessibility and keyboard navigation
+- **auth.spec.ts** - Authentication flows (sign-in, sign-up, navigation, validation)
+- **landing.spec.ts** - Landing page redirects and navigation
+- **navigation.spec.ts** - Page navigation, headers, and routing
+- **accessibility.spec.ts** - Form accessibility, input types, keyboard navigation
 
 **Current Status**: ✅ 16 tests passing across 4 test files
 
 The E2E suite uses:
 - **Playwright** - Modern browser automation framework
 - **Chromium** - Headless browser testing
-- **Semantic Selectors** - Accessible and maintainable test queries
-- **Automatic Retries** - Built-in retry logic for flaky tests
+- **Semantic Selectors** - `getByRole()`, `getByPlaceholder()` for maintainability
+- **Auto-start Server** - Dev server starts automatically for tests
+- **Automatic Retries** - 2 retries on failure in CI environments
 - **HTML Reports** - Visual test reports with screenshots on failure
+
+**Test Strategy:**
+- Focus on unauthenticated flows (no database setup needed)
+- Critical user paths: sign-in, sign-up, form validation
+- Accessibility compliance: proper input types, required attributes
+- Quick execution: ~5 seconds for full test suite
+
+**Future Tests:**
+- Authenticated dashboard flows
+- File upload and CSV processing
+- Search functionality
+- Download modal interactions
 
 ## Features in Detail
 
@@ -476,6 +485,62 @@ The E2E suite uses:
 - **Orchestration**: Complex multi-step processes
 - **Durable Execution**: Survives worker restarts
 
+## Authentication System
+
+The application uses Better Auth for secure authentication with email/password support.
+
+### Authentication Flow
+
+1. **Sign Up**: Users create accounts with name, email, and password
+2. **Sign In**: Credentials validated, session token stored in localStorage
+3. **Protected Routes**: Token validated on every request via tRPC context
+4. **Sign Out**: Token cleared, user redirected to sign-in page
+
+### Security Features
+
+- **Password Hashing**: Bcrypt hashing handled by Better Auth
+- **Session Tokens**: Cryptographically secure tokens stored in database
+- **Token Validation**: Every protected endpoint validates userId from context
+- **Authorization Checks**: Per-user data isolation enforced at repository level
+- **Protected Routes**: All `/app/*` routes require valid authentication
+
+### Usage Examples
+
+**Sign In:**
+```tsx
+const mutation = trpcReact.auth.signIn.useMutation({
+  onSuccess: (data) => {
+    localStorage.setItem("auth_token", data.token);
+    navigate({ to: "/app" });
+  },
+});
+mutation.mutate({ email, password });
+```
+
+**Sign Out:**
+```tsx
+import { useLogout } from "@/hooks";
+const handleLogout = useLogout();
+handleLogout(); // Clears token and redirects
+```
+
+**Protect Server Endpoints:**
+```typescript
+.query(async ({ ctx }) => {
+  const { db, userId } = ctx;
+  if (!userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  // Your logic here
+});
+```
+
+### Database Tables
+
+- **users**: User accounts (id, name, email, timestamps)
+- **sessions**: Active sessions (id, token, user_id, expires_at)
+- **accounts**: Auth providers (id, user_id, password hash)
+
 ## Contributing
 
 1. Fork the repository
@@ -483,13 +548,6 @@ The E2E suite uses:
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## Documentation
-
-- [Authentication Guide](./docs/AUTH_IMPLEMENTATION.md)
-- [Auth Quick Reference](./docs/AUTH_QUICK_REFERENCE.md)
-- [Scraping Implementation](./docs/SCRAPING_IMPLEMENTATION.md)
-- [Requirements](./REQUIREMENTS.MD)
 
 ## License
 
@@ -505,18 +563,19 @@ For issues and questions:
 ## Roadmap
 
 ### Phase 1: Core Features ✅
-- [x] User authentication
-- [x] CSV file upload
+- [x] User authentication with Better Auth
+- [x] CSV file upload and processing
 - [x] Query management
-- [x] Asynchronous scraping
-- [x] Result storage
+- [x] Asynchronous scraping with Workflows
+- [x] Result storage in D1
 - [x] Repository pattern implementation
-- [x] Unit tests with database mocking
+- [x] Unit tests with database mocking (22 tests)
+- [x] E2E tests with Playwright (16 tests)
 - [x] Queue-based job processing (1 job at a time)
 - [x] Progress tracking with percentage calculation
 - [x] Global search across all results
-- [x] Screenshot and HTML capture
-- [x] Authenticated file downloads with R2
+- [x] Screenshot and HTML capture in R2
+- [x] Authenticated file downloads with modal UI
 
 ### Phase 2: Enhanced Scraping 🚧
 - [ ] Browser Rendering with Puppeteer
