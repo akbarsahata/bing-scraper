@@ -55,6 +55,7 @@ This project provides a comprehensive solution for uploading CSV files containin
 - **Wrangler** - Cloudflare deployment CLI
 - **Vitest** - Unit testing framework with coverage
 - **Playwright** - End-to-end testing framework
+- **GitHub Actions** - CI/CD automation
 - **ESLint & Prettier** - Code quality
 
 ## Project Structure
@@ -262,7 +263,7 @@ Access the application at `http://localhost:5173`
 
 ### Deployment
 
-Deploy to Cloudflare:
+Deploy to Cloudflare manually:
 
 ```bash
 # Deploy web app
@@ -273,6 +274,10 @@ pnpm run deploy
 cd ../scraper
 pnpm run deploy
 ```
+
+Or use the automated CI/CD pipeline (see [CI/CD Setup](./.github/CI_CD_SETUP.md)):
+- Push to master → Tests run automatically
+- Tests pass → Deploys to Cloudflare automatically
 
 ## Database Schema
 
@@ -541,13 +546,27 @@ handleLogout(); // Clears token and redirects
 - **sessions**: Active sessions (id, token, user_id, expires_at)
 - **accounts**: Auth providers (id, user_id, password hash)
 
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+- **Automated Testing**: Unit tests and E2E tests run on every push/PR to master
+- **Automated Deployment**: After tests pass, automatically deploys to Cloudflare
+- **Workflow Status**: [![Test](https://github.com/akbarsahata/bing-scraper/actions/workflows/test.yml/badge.svg)](https://github.com/akbarsahata/bing-scraper/actions/workflows/test.yml)
+
+**Setup Required:**
+1. Add `CLOUDFLARE_API_TOKEN` to GitHub repository secrets
+2. Configure account_id in wrangler.jsonc files
+
+See detailed setup instructions in [CI/CD Setup Guide](./.github/CI_CD_SETUP.md).
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+5. Open a Pull Request (tests will run automatically)
 
 ## License
 

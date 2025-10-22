@@ -4,6 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "73c2eb2ea030c38704eed3164930a17a",
   "name": "bing-scraper-web",
   "main": "worker/index.ts",
   "compatibility_date": "2025-06-17",
