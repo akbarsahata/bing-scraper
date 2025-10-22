@@ -99,10 +99,14 @@ jobs:
           cd apps/web
           pnpm exec playwright install chromium --with-deps
 
-      - name: Install Dependencies for E2E tests
+      - name: Setup local D1 database
         run: |
           cd apps/web
-          pnpm install
+          # Create .wrangler directory structure for local D1
+          mkdir -p .wrangler/state/v3/d1/miniflare-D1DatabaseObject
+          # Apply migrations using wrangler
+          pnpm exec wrangler d1 execute bing-scraper-db --local --file=../../packages/data/drizzle/0000_giant_baron_strucker.sql
+          pnpm exec wrangler d1 execute bing-scraper-db --local --file=../../packages/data/drizzle/0001_loud_metal_master.sql
 
       - name: Run E2E tests
         run: |
