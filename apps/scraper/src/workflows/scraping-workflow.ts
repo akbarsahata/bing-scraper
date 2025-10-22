@@ -2,6 +2,7 @@ import { getDb, initDatabase } from '@repo/data/database';
 import { scrapingTasksRepo } from '@repo/data/repos/scraping-tasks.repo';
 import { searchQueriesRepo } from '@repo/data/repos/search-queries.repo';
 import { searchResultsRepo } from '@repo/data/repos/search-results.repo';
+import { uploadedFilesRepo } from '@repo/data/repos/uploaded-files.repo';
 import type { ScrapingQueueMessage } from '@repo/data/zod-schema/queue';
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import { SessionManager } from '../session-manager';
@@ -165,9 +166,15 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 
 				await scrapingTasksRepo.markAsCompleted(db, task.id, duration);
 				await searchQueriesRepo.updateStatus(db, queryId, 'completed');
+				
+				await uploadedFilesRepo.incrementProcessedQueries(db, task.uploadedFileId);
+				console.log(`Incremented processed queries for file: ${task.uploadedFileId}`);
 			} else {
 				await scrapingTasksRepo.markAsFailed(db, task.id, scrapingResult.error || 'Scraping failed');
 				await searchQueriesRepo.updateStatus(db, queryId, 'failed', scrapingResult.error);
+				
+				await uploadedFilesRepo.incrementProcessedQueries(db, task.uploadedFileId);
+				console.log(`Incremented processed queries for failed task file: ${task.uploadedFileId}`);
 			}
 		});
 
@@ -180,7 +187,6 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 	}
 
 	private async scrapeBing(queryText: string, queryId: string, userId: string): Promise<ScrapingResult> {
-		// Generate realistic Bing search URL with proper parameters
 		const generateBingSearchUrl = (query: string) => {
 			const encodedQuery = encodeURIComponent(query);
 			const cvid = crypto.randomUUID().replace(/-/g, '').substring(0, 32).toUpperCase();
@@ -274,13 +280,10 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			try {
 				await page.waitForSelector('#sb_form_q', { timeout: 10000 });
 				
-				// Click on the search box to focus it (human-like behavior)
 				await page.click('#sb_form_q');
 				
-				// Small delay after clicking
 				await new Promise((resolve) => setTimeout(resolve, Math.random() * 500 + 200));
 				
-				// Sometimes clear existing text first (10% chance - simulates correcting previous search)
 				if (Math.random() < 0.1) {
 					await page.keyboard.down('Control');
 					await page.keyboard.press('KeyA');
@@ -288,40 +291,32 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 100));
 				}
 				
-				// Type the query with human-like typing speed
 				await page.type('#sb_form_q', queryText, {
 					delay: Math.random() * 100 + 50, // Random typing speed between 50-150ms per character
 				});
 				
-				// Occasionally make a "typo" and correct it (5% chance)
 				if (Math.random() < 0.05) {
 					console.log('Simulating typo correction...');
 					await new Promise((resolve) => setTimeout(resolve, Math.random() * 500 + 200));
 					
-					// Add an extra character
 					await page.type('#sb_form_q', 'x', { delay: 100 });
 					await new Promise((resolve) => setTimeout(resolve, Math.random() * 800 + 300));
 					
-					// Delete it
 					await page.keyboard.press('Backspace');
 					await new Promise((resolve) => setTimeout(resolve, Math.random() * 300 + 100));
 				}
 				
-				// Brief pause before submitting (like a human would)
 				const thinkingDelay = Math.floor(Math.random() * 2000) + 500;
 				console.log(`Thinking delay before search: ${thinkingDelay}ms`);
 				await new Promise((resolve) => setTimeout(resolve, thinkingDelay));
 				
-				// Submit the search form
 				await page.keyboard.press('Enter');
 				
-				// Wait for search results to load
 				await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 });
 				console.log(`Successfully searched for: "${queryText}"`);
 				
 			} catch (error) {
 				console.log('Failed to use search box, falling back to direct URL navigation');
-				// Fallback to direct navigation with realistic search URL
 				const fallbackUrl = generateBingSearchUrl(queryText);
 				console.log(`Using fallback URL: ${fallbackUrl}`);
 				await page.goto(fallbackUrl, {
@@ -334,7 +329,6 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			console.log(`Page load delay: ${pageLoadDelay}ms`);
 			await new Promise((resolve) => setTimeout(resolve, pageLoadDelay));
 
-			// Sometimes scroll down to see more results (30% chance)
 			if (Math.random() < 0.3) {
 				console.log('Simulating page scroll to see more results...');
 				await page.evaluate(() => {
@@ -346,10 +340,8 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					});
 				});
 				
-				// Wait a bit after scrolling
 				await new Promise((resolve) => setTimeout(resolve, Math.random() * 1500 + 500));
 				
-				// Scroll back up sometimes
 				if (Math.random() < 0.5) {
 					await page.evaluate(() => {
 						// @ts-ignore - Browser DOM available in evaluate context
@@ -405,7 +397,6 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 			try {
 				await page.waitForSelector('#b_results', { timeout: 5000 });
 				
-				// Simulate human reading and browsing behavior
 				await page.evaluate(() => {
 					// @ts-ignore - Browser DOM available in evaluate context
 					const results = document.querySelectorAll('#b_results li');
@@ -416,7 +407,6 @@ export class ScrapingWorkflow extends WorkflowEntrypoint<Env, ScrapingQueueMessa
 					}
 				});
 				
-				// Simulate some mouse movement over results (human-like cursor behavior)
 				const resultElements = await page.$$('#b_results li.b_algo');
 				if (resultElements.length > 0) {
 					for (let i = 0; i < Math.min(3, resultElements.length); i++) {

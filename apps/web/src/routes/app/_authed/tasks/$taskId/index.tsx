@@ -49,7 +49,7 @@ function TaskDetailPage() {
                 <span className="text-orange-600 font-bold text-lg">
                   {isLoadingTask
                     ? "..."
-                    : task?.totalQueries
+                    : task?.totalQueries && task.totalQueries > 0
                     ? Math.round(
                         ((task.processedQueries || 0) / task.totalQueries) * 100
                       )
