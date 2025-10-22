@@ -42,6 +42,15 @@ export function PageHeader({
           >
             Tasks
           </Link>
+          <Link
+            to="/app/search"
+            className="text-sm text-gray-700 hover:text-blue-600 transition-colors"
+            activeProps={{
+              className: "text-blue-600 font-medium"
+            }}
+          >
+            Search
+          </Link>
         </nav>
       </div>
       {showLogout && (

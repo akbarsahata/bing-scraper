@@ -1,6 +1,8 @@
 import { trpcReact } from "@/utils/trpc-types";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader, LoadingState, EmptyState } from "@/components/layout";
+import { DownloadModal } from "@/components/ui/DownloadModal";
+import { useState } from "react";
 
 export const Route = createFileRoute(
   "/app/_authed/tasks/$taskId/keyword/$keywordId"
@@ -11,21 +13,33 @@ export const Route = createFileRoute(
 function KeywordResultsPage() {
   const { keywordId, taskId } = Route.useParams();
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
 
   const { data, isLoading } = trpcReact.queries.getByQueryId.useQuery({
     queryId: keywordId,
     uploadedFileId: taskId,
   });
 
-  const keyword = data?.query.queryText || "";
+  const getDownloadLinksMutation = trpcReact.queries.getDownloadLinks.useMutation();
 
+  const keyword = data?.query.queryText || "";
   const results = data?.results.items || [];
   
   const adsCount = results.filter((item) => item.isAd).length;
   const linksCount = results.filter((item) => !item.isAd).length;
 
-  const handleDownload = () => {
-    console.log("Downloading results for keyword:", keyword);
+  const handleDownload = async () => {
+    if (!data?.results.id) return;
+    
+    try {
+      await getDownloadLinksMutation.mutateAsync({
+        queryId: keywordId,
+        taskId: data.results.taskId,
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error("Failed to get download links:", error);
+    }
   };
 
   const handleBack = () => {
@@ -55,10 +69,10 @@ function KeywordResultsPage() {
             <div className="flex gap-4 mb-4">
               <button
                 onClick={handleDownload}
-                className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600"
-                disabled={isLoading || results.length === 0}
+                className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                disabled={isLoading || results.length === 0 || getDownloadLinksMutation.isPending}
               >
-                download
+                {getDownloadLinksMutation.isPending ? "Loading..." : "download"}
               </button>
               <div className="flex gap-4 text-sm">
                 <span>
@@ -72,6 +86,13 @@ function KeywordResultsPage() {
               </div>
             </div>
           </div>
+
+          <DownloadModal
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            screenshotUrl={getDownloadLinksMutation.data?.screenshotUrl}
+            htmlUrl={getDownloadLinksMutation.data?.htmlUrl}
+          />
 
           <div>
             <h3 className="font-bold mb-4">search results</h3>

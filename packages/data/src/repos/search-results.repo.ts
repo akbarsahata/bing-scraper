@@ -3,7 +3,7 @@ import { searchResultItems } from "@/schemas/search-result-items";
 import { searchResults } from "@/schemas/search-results";
 import { NewSearchResultItemSchema } from "@/zod/search-result-items";
 import { NewSearchResultSchema } from "@/zod/search-results";
-import { and, eq } from "drizzle-orm";
+import { and, eq, like, or, desc } from "drizzle-orm";
 
 export const searchResultsRepo = {
   create: async (
@@ -65,5 +65,33 @@ export const searchResultsRepo = {
       .from(searchResults)
       .where(eq(searchResults.queryId, queryId))
       .all();
+  },
+
+  searchAll: async (
+    db: Db,
+    userId: string,
+    searchTerm: string,
+    options?: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 50, offset = 0 } = options || {};
+
+    const results = await db.query.searchResults.findMany({
+      where: eq(searchResults.userId, userId),
+      with: {
+        items: {
+          where: or(
+            like(searchResultItems.title, `%${searchTerm}%`),
+            like(searchResultItems.url, `%${searchTerm}%`),
+            like(searchResultItems.snippet, `%${searchTerm}%`),
+            like(searchResultItems.domain, `%${searchTerm}%`)
+          ),
+        },
+      },
+      orderBy: desc(searchResults.scrapedAt),
+      limit,
+      offset,
+    });
+
+    return results.filter(result => result.items.length > 0);
   },
 };

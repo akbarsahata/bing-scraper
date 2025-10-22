@@ -16,6 +16,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
+import { Route as AppAuthedSearchRouteImport } from './routes/app/_authed/search'
 import { Route as AppAuthedTasksIndexRouteImport } from './routes/app/_authed/tasks/index'
 import { Route as AppAuthedTasksTaskIdIndexRouteImport } from './routes/app/_authed/tasks/$taskId/index'
 import { Route as AppAuthedTasksTaskIdKeywordKeywordIdRouteImport } from './routes/app/_authed/tasks/$taskId/keyword/$keywordId'
@@ -51,6 +52,11 @@ const AppAuthedIndexRoute = AppAuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAuthedRoute,
 } as any)
+const AppAuthedSearchRoute = AppAuthedSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AppAuthedRoute,
+} as any)
 const AppAuthedTasksIndexRoute = AppAuthedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedRouteWithChildren
+  '/app/search': typeof AppAuthedSearchRoute
   '/app/': typeof AppAuthedIndexRoute
   '/app/tasks': typeof AppAuthedTasksIndexRoute
   '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdIndexRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppAuthedIndexRoute
+  '/app/search': typeof AppAuthedSearchRoute
   '/app/tasks': typeof AppAuthedTasksIndexRoute
   '/app/tasks/$taskId': typeof AppAuthedTasksTaskIdIndexRoute
   '/app/tasks/$taskId/keyword/$keywordId': typeof AppAuthedTasksTaskIdKeywordKeywordIdRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/app': typeof AppRouteWithChildren
   '/app/_authed': typeof AppAuthedRouteWithChildren
+  '/app/_authed/search': typeof AppAuthedSearchRoute
   '/app/_authed/': typeof AppAuthedIndexRoute
   '/app/_authed/tasks/': typeof AppAuthedTasksIndexRoute
   '/app/_authed/tasks/$taskId/': typeof AppAuthedTasksTaskIdIndexRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/app'
+    | '/app/search'
     | '/app/'
     | '/app/tasks'
     | '/app/tasks/$taskId'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/app'
+    | '/app/search'
     | '/app/tasks'
     | '/app/tasks/$taskId'
     | '/app/tasks/$taskId/keyword/$keywordId'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/app'
     | '/app/_authed'
+    | '/app/_authed/search'
     | '/app/_authed/'
     | '/app/_authed/tasks/'
     | '/app/_authed/tasks/$taskId/'
@@ -184,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedIndexRouteImport
       parentRoute: typeof AppAuthedRoute
     }
+    '/app/_authed/search': {
+      id: '/app/_authed/search'
+      path: '/search'
+      fullPath: '/app/search'
+      preLoaderRoute: typeof AppAuthedSearchRouteImport
+      parentRoute: typeof AppAuthedRoute
+    }
     '/app/_authed/tasks/': {
       id: '/app/_authed/tasks/'
       path: '/tasks'
@@ -209,6 +228,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppAuthedRouteChildren {
+  AppAuthedSearchRoute: typeof AppAuthedSearchRoute
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
   AppAuthedTasksIndexRoute: typeof AppAuthedTasksIndexRoute
   AppAuthedTasksTaskIdIndexRoute: typeof AppAuthedTasksTaskIdIndexRoute
@@ -216,6 +236,7 @@ interface AppAuthedRouteChildren {
 }
 
 const AppAuthedRouteChildren: AppAuthedRouteChildren = {
+  AppAuthedSearchRoute: AppAuthedSearchRoute,
   AppAuthedIndexRoute: AppAuthedIndexRoute,
   AppAuthedTasksIndexRoute: AppAuthedTasksIndexRoute,
   AppAuthedTasksTaskIdIndexRoute: AppAuthedTasksTaskIdIndexRoute,

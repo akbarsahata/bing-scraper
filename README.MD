@@ -11,6 +11,8 @@ This project provides a comprehensive solution for uploading CSV files containin
 - **CSV Upload & Processing**: Upload CSV files with search queries for batch processing
 - **Asynchronous Scraping**: Background job processing with Cloudflare Queues and Workflows
 - **Real-time Updates**: Track scraping progress and view results in real-time
+- **Global Search**: Search across all scraped results by title, URL, snippet, or domain
+- **File Downloads**: Download screenshots and HTML snapshots of search results with authenticated access
 - **User Authentication**: Secure authentication system powered by Better Auth
 - **Data Storage**: Efficient storage using Cloudflare D1 (database) and R2 (file storage)
 - **Responsive UI**: Modern, accessible interface built with React and Tailwind CSS
@@ -51,7 +53,7 @@ This project provides a comprehensive solution for uploading CSV files containin
 - **TypeScript** - Type safety
 - **pnpm** - Package manager
 - **Wrangler** - Cloudflare deployment CLI
-- **Vitest** - Unit testing
+- **Vitest** - Unit testing framework with coverage
 - **ESLint & Prettier** - Code quality
 
 ## Project Structure
@@ -64,8 +66,8 @@ bing-scraper/
 │   │   │   ├── components/           # React components
 │   │   │   │   ├── auth/             # Auth provider & hooks
 │   │   │   │   ├── layout/           # Layout components
-│   │   │   │   └── ui/               # UI components (Cards, States)
-│   │   │   ├── routes/               # File-based routing
+│   │   │   │   │   └── ui/               # UI components (Cards, States, Modal)
+│   │   │   │   ├── routes/               # File-based routing
 │   │   │   │   ├── __root.tsx        # Root layout with AuthProvider
 │   │   │   │   ├── index.tsx         # Landing page
 │   │   │   │   ├── sign-in.tsx       # Sign-in page
@@ -73,6 +75,9 @@ bing-scraper/
 │   │   │   │   └── app/              # Authenticated routes
 │   │   │   │       ├── _authed.tsx   # Protected route wrapper
 │   │   │   │       └── _authed/      # Protected dashboard pages
+│   │   │   │           ├── index.tsx # Dashboard with recent files
+│   │   │   │           ├── search.tsx # Global search page
+│   │   │   │           └── tasks/    # Task detail pages
 │   │   │   ├── styles/               # Global styles (Tailwind CSS)
 │   │   │   ├── hooks/                # Custom React hooks
 │   │   │   ├── utils/                # Utility functions & tRPC client
@@ -87,7 +92,7 @@ bing-scraper/
 │   │   │       └── routers/          # API route handlers
 │   │   │           ├── auth.ts       # Authentication endpoints
 │   │   │           ├── files.ts      # File upload & management
-│   │   │           └── queries.ts    # Query management
+│   │   │           └── queries.ts    # Query & search management
 │   │   ├── public/                   # Static assets
 │   │   ├── wrangler.jsonc            # Cloudflare Worker config
 │   │   ├── vite.config.ts            # Vite configuration
@@ -121,13 +126,18 @@ bing-scraper/
 │       │   │   ├── search-queries.repo.ts
 │       │   │   ├── scraping-tasks.repo.ts
 │       │   │   └── search-results.repo.ts
-│       │   └── zod/                  # Zod validation schemas
-│       │       ├── queue.ts          # Queue message schemas
-│       │       ├── scraping-tasks.ts
-│       │       ├── search-queries.ts
-│       │       └── ...
+│       │   ├── zod/                  # Zod validation schemas
+│       │   │   ├── queue.ts          # Queue message schemas
+│       │   │   ├── scraping-tasks.ts
+│       │   │   ├── search-queries.ts
+│       │   │   └── ...
+│       │   └── __tests__/            # Unit tests
+│       │       ├── mocks/            # Mock database helpers
+│       │       ├── fixtures/         # Test data fixtures
+│       │       └── repos/            # Repository tests
 │       ├── drizzle/                  # Database migrations
 │       ├── drizzle.config.ts         # Drizzle configuration
+│       ├── vitest.config.ts          # Vitest configuration
 │       ├── tsconfig.json
 │       └── package.json
 ├── docs/                             # Documentation
@@ -298,7 +308,12 @@ See [REQUIREMENTS.MD](./REQUIREMENTS.MD) for the complete schema.
 
 ### Queries (`/trpc/queries.*`)
 - `queries.getByFileId` - Get queries for a file
-- `queries.getResultsByQueryId` - Get results for a query
+- `queries.getByQueryId` - Get results for a specific query
+- `queries.search` - Global search across all results
+- `queries.getDownloadLinks` - Generate authenticated download links
+
+### Downloads (`/api/download`)
+- `GET /api/download?key=<r2_key>&type=<screenshot|html>` - Download R2 files (authenticated)
 
 ## Environment Variables
 
@@ -311,13 +326,36 @@ Configure in Cloudflare dashboard or `wrangler.jsonc`:
 
 ## Testing
 
+Run unit tests for the data layer:
+
 ```bash
-# Run tests
+# Run all tests
+cd packages/data
 pnpm run test
+
+# Run tests in watch mode
+pnpm run test:watch
 
 # Run tests with coverage
 pnpm run test:coverage
 ```
+
+### Test Coverage
+
+The data package includes comprehensive unit tests for all repository methods:
+
+- **uploaded-files.repo.test.ts** - Tests for file management operations
+- **search-queries.repo.test.ts** - Tests for query CRUD operations
+- **search-results.repo.test.ts** - Tests for search result storage
+- **scraping-tasks.repo.test.ts** - Tests for task orchestration
+
+**Current Status**: ✅ 22 tests passing across 4 test files
+
+The test suite uses:
+- **Vitest** - Fast unit testing framework
+- **Mock Database** - Custom Drizzle ORM mocks with proper array destructuring support
+- **Test Fixtures** - Reusable test data for consistent testing
+- **Type Safety** - Full TypeScript coverage in tests
 
 ## Features in Detail
 
@@ -332,6 +370,8 @@ pnpm run test:coverage
 - Cloudflare Workflows for orchestration
 - Automatic retry on failures
 - Progress tracking per query
+- Sequential processing (1 job at a time) to avoid rate limits
+- Real-time percentage calculation for file processing
 
 ### Search Result Extraction
 - Fetches Bing search results
@@ -339,12 +379,35 @@ pnpm run test:coverage
 - Extracts title, URL, snippet, domain
 - Identifies ads vs organic results
 - Stores position information
+- Captures screenshots and HTML snapshots
+- Stores files in R2 with user isolation
+
+### Global Search
+- Search across all scraped results
+- Searches in titles, URLs, snippets, and domains
+- Real-time filtering with instant results
+- User-specific search (only searches own data)
+- Pagination support for large result sets
+
+### File Downloads
+- Authenticated download endpoint
+- Screenshots (PNG format)
+- HTML snapshots for archival
+- On-demand generation of download links
+- Modal interface for easy access
+- Secure R2 file access with user authorization
 
 ### User Management
 - Secure authentication with Better Auth
 - Session management with cookies
 - Protected routes with route guards
 - Per-user data isolation
+
+### Testing & Quality
+- Comprehensive unit test coverage for data layer
+- Mock database implementation for isolated testing
+- Type-safe test fixtures and helpers
+- CI/CD ready with Vitest
 
 ## Architecture Decisions
 
@@ -361,9 +424,10 @@ pnpm run test:coverage
 
 ### Why Repository Pattern?
 - **Separation of Concerns**: Business logic separate from data access
-- **Testability**: Easy to mock for unit tests
+- **Testability**: Easy to mock for unit tests with comprehensive test coverage
 - **Maintainability**: Centralized data access logic
 - **Reusability**: Share logic between workers
+- **Type Safety**: Full TypeScript inference through the data layer
 
 ### Why Workflows?
 - **Reliability**: Automatic retries and state persistence
@@ -405,10 +469,16 @@ For issues and questions:
 - [x] Query management
 - [x] Asynchronous scraping
 - [x] Result storage
+- [x] Repository pattern implementation
+- [x] Unit tests with database mocking
+- [x] Queue-based job processing (1 job at a time)
+- [x] Progress tracking with percentage calculation
+- [x] Global search across all results
+- [x] Screenshot and HTML capture
+- [x] Authenticated file downloads with R2
 
 ### Phase 2: Enhanced Scraping 🚧
 - [ ] Browser Rendering with Puppeteer
-- [ ] Screenshot capture
 - [ ] Pagination support
 - [ ] Rich snippet extraction
 - [ ] Multiple search engines
@@ -420,6 +490,7 @@ For issues and questions:
 - [ ] Export formats (CSV, JSON, Excel)
 - [ ] API rate limiting
 - [ ] User dashboards and analytics
+- [ ] Bulk download of multiple files
 
 ## Acknowledgments
 
