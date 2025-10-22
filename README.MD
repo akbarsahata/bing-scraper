@@ -54,6 +54,7 @@ This project provides a comprehensive solution for uploading CSV files containin
 - **pnpm** - Package manager
 - **Wrangler** - Cloudflare deployment CLI
 - **Vitest** - Unit testing framework with coverage
+- **Playwright** - End-to-end testing framework
 - **ESLint & Prettier** - Code quality
 
 ## Project Structure
@@ -326,6 +327,8 @@ Configure in Cloudflare dashboard or `wrangler.jsonc`:
 
 ## Testing
 
+### Unit Tests (Data Layer)
+
 Run unit tests for the data layer:
 
 ```bash
@@ -340,7 +343,7 @@ pnpm run test:watch
 pnpm run test:coverage
 ```
 
-### Test Coverage
+#### Unit Test Coverage
 
 The data package includes comprehensive unit tests for all repository methods:
 
@@ -356,6 +359,44 @@ The test suite uses:
 - **Mock Database** - Custom Drizzle ORM mocks with proper array destructuring support
 - **Test Fixtures** - Reusable test data for consistent testing
 - **Type Safety** - Full TypeScript coverage in tests
+
+### End-to-End Tests (Web Application)
+
+Run E2E tests for the web application:
+
+```bash
+cd apps/web
+
+# Run all E2E tests
+pnpm run test:e2e
+
+# Run tests with UI mode (interactive)
+pnpm run test:e2e:ui
+
+# Run tests in headed mode (see browser)
+pnpm run test:e2e:headed
+
+# Debug tests step by step
+pnpm run test:e2e:debug
+```
+
+#### E2E Test Coverage
+
+The web app includes end-to-end tests covering critical user flows:
+
+- **auth.spec.ts** - Authentication flows (sign-in, sign-up, navigation)
+- **landing.spec.ts** - Landing page and redirects
+- **navigation.spec.ts** - Page navigation and routing
+- **accessibility.spec.ts** - Form accessibility and keyboard navigation
+
+**Current Status**: ✅ 16 tests passing across 4 test files
+
+The E2E suite uses:
+- **Playwright** - Modern browser automation framework
+- **Chromium** - Headless browser testing
+- **Semantic Selectors** - Accessible and maintainable test queries
+- **Automatic Retries** - Built-in retry logic for flaky tests
+- **HTML Reports** - Visual test reports with screenshots on failure
 
 ## Features in Detail
 

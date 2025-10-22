@@ -7,3 +7,7 @@ dist-ssr
 .tanstack
 
 .env
+
+test-results/
+playwright-report/
+playwright/.cache/
