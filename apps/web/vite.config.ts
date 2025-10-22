@@ -14,7 +14,7 @@ export default defineConfig({
     tailwindcss(),
     cloudflare({
       experimental: {
-        remoteBindings: true,
+        remoteBindings: process.env.CI ? false : true,
       },
     }),
   ],

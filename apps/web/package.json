@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000 --mode development",
-    "dev:ci": "wrangler dev --port 3000 --local",
+    "dev:ci": "WRANGLER_SEND_METRICS=false vite --port 3000 --mode development",
     "start": "vite --port 3000",
     "build": "vite build && tsc",
     "serve": "vite preview",
