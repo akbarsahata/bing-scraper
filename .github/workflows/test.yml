@@ -99,6 +99,11 @@ jobs:
           cd apps/web
           pnpm exec playwright install chromium --with-deps
 
+      - name: Install Dependencies for E2E tests
+        run: |
+          cd apps/web
+          pnpm install
+
       - name: Run E2E tests
         run: |
           cd apps/web
